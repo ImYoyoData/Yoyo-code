@@ -11,6 +11,12 @@ This file is maintained by the release workflow; each release prepends a bilingu
 
 ### 问题修复
 
+- 恢复被发布提交写坏的 version 行（原内容为 $13.15.1$3，导致所有平台构建在装依赖阶段失败）。
+  - _EN:_
+    - Restore the version field that the release commit mangled into "$13.15.1$3".
+- 版本号写回改为按下标拼接。String.replace 的首参是字符串时不会展开 $1/$3，之前把 package.json 写成了 "$13.15.1$3"，导致所有平台在装依赖时直接失败；写回前现在会先校验 JSON 合法性。
+  - _EN:_
+    - Rewrite the version field by slicing on match indices instead of String.replace with a string pattern — that form does not expand $1/$3, which wrote "$13.15.1$3" into package.json and broke every platform build at dependency install. The rewritten file is now JSON-validated before being written.
 - 产物名不再带空格。electron-builder 会把 latest*.yml 里的下载 url 规范成连字符形式，之前「Yoyo Code-*.exe」与清单对不上，客户端更新会 404。现在文件名、更新清单与 Release 资产三者一致。
   - _EN:_
     - Build artifact names no longer contain spaces. electron-builder writes the download url in latest*.yml with spaces normalized to hyphens, so the previous "Yoyo Code-*.exe" files never matched the manifest and the in-app updater would 404. File name, update manifest and release asset now agree.
@@ -21,6 +27,10 @@ This file is maintained by the release workflow; each release prepends a bilingu
   - _EN:_
     - Make the version rewrite idempotent (a prepared version on the branch is already the release version) and make draft-release creation idempotent so a re-run after a failure can continue.
 
+### 维护
+
+- release v3.15.1
+
 
 ## English
 
@@ -28,6 +38,12 @@ Release **v3.15.1** (2026-09-24)
 
 ### Fixes
 
+- Restore the version field that the release commit mangled into "$13.15.1$3".
+  - _中文：_
+    - 恢复被发布提交写坏的 version 行（原内容为 $13.15.1$3，导致所有平台构建在装依赖阶段失败）。
+- Rewrite the version field by slicing on match indices instead of String.replace with a string pattern — that form does not expand $1/$3, which wrote "$13.15.1$3" into package.json and broke every platform build at dependency install. The rewritten file is now JSON-validated before being written.
+  - _中文：_
+    - 版本号写回改为按下标拼接。String.replace 的首参是字符串时不会展开 $1/$3，之前把 package.json 写成了 "$13.15.1$3"，导致所有平台在装依赖时直接失败；写回前现在会先校验 JSON 合法性。
 - Build artifact names no longer contain spaces. electron-builder writes the download url in latest*.yml with spaces normalized to hyphens, so the previous "Yoyo Code-*.exe" files never matched the manifest and the in-app updater would 404. File name, update manifest and release asset now agree.
   - _中文：_
     - 产物名不再带空格。electron-builder 会把 latest*.yml 里的下载 url 规范成连字符形式，之前「Yoyo Code-*.exe」与清单对不上，客户端更新会 404。现在文件名、更新清单与 Release 资产三者一致。
@@ -38,6 +54,16 @@ Release **v3.15.1** (2026-09-24)
   - _中文：_
     - 版本改写改为幂等（分支上已准备好的版本号即为发布版本），草稿 Release 创建也改为幂等，失败重跑可继续。
 
+### Maintenance
+
+- release v3.15.1
+
+
+---
+
+1 条提交只写了单一语言，因此只显示原文。在提交信息正文里加 `EN:` / `ZH:` 行即可同时生成两种语言。
+
+1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
 
 ---
 
@@ -86,7 +112,6 @@ Release **v3.15.1** (2026-09-24)
     - Skip the release commit when the version and changelog are already prepared on the branch, and create the tag only when missing, so the pipeline cannot fail on "nothing to commit".
 - 更新 流水线自动发布的功能
 
-
 ## English
 
 Release **v3.15.0** (2026-09-24)
@@ -127,7 +152,6 @@ Release **v3.15.0** (2026-09-24)
   - _中文：_
     - 版本号与日志已在分支上准备好时跳过 release 提交，tag 只在缺失时创建，避免流水线因「无内容可提交」中断。
 - 更新 流水线自动发布的功能
-
 
 ---
 
