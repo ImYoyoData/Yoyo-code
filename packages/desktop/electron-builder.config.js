@@ -763,9 +763,10 @@ export default {
     repo: "Yoyo-code",
     // 发布走 CI 的两段式流程（先草稿，两个平台构建完成后转正式），构建阶段不发布资产。
     releaseType: "draft",
-    // GitHub Release 资产支持 Range 但不支持 multipart/byteranges。关闭 multiple range 后仍是差分更新：
-    // electron-updater 会下载同一 Release 里的 *.blockmap，按单 Range 顺序拉取差异块；
-    // 否则 Windows/macOS 用户每次更新都要重新下载 300MB+ 整包。
-    useMultipleRangeRequest: false,
+    // 不要在这里写 useMultipleRangeRequest：该字段只对 generic provider 合法，
+    // 加在 github provider 下会让 electron-builder 配置校验直接失败（打包步骤整体中断）。
+    // 差分下载不受影响——electron-updater 的 GitHubProvider 内部就固定
+    // isUseMultipleRangeRequest=false（GitHub 资产走 S3，不支持 multipart/byteranges），
+    // 仍会下载同一 Release 里的 *.blockmap 按单 Range 拉取差异块。
   },
 };
