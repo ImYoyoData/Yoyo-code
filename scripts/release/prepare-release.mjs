@@ -108,7 +108,6 @@ function main() {
     previousTag,
     requestedVersion: options.version,
     requestedBump: options.bump,
-    commits,
     fallbackBump: bump,
   });
   const tag = `v${version}`;
@@ -155,7 +154,6 @@ function resolveNextVersion({
   previousTag,
   requestedVersion,
   requestedBump,
-  commits,
   fallbackBump,
 }) {
   if (requestedVersion) return requestedVersion;
