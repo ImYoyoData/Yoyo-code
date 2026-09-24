@@ -73,7 +73,9 @@ export {
   normalizeZCodeProductFlavor,
 } from "./env.js";
 export * from "./errors.js";
-export * from "./project-config-dirs.js";
+// 注意：project-config-dirs 依赖 node:path，只能通过 `@zcode/shared/project-config-dirs` 子路径导入。
+// 加进 barrel 会被 preload（沙箱 require 白名单）与 renderer（浏览器）一起拉进来：前者直接加载失败，
+// 后者抛 "node:path has been externalized"。
 export type { SessionCreateSource } from "./sessionCreateSource.js";
 export { resolveSafeEndpointHostname } from "./endpointHostname.js";
 export * from "./rendererActionTrace.js";
