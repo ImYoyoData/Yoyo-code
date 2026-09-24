@@ -3,6 +3,34 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.2 — 2026-09-24
+
+## 中文
+
+版本 **v3.15.2**（2026-09-24）
+
+### 问题修复
+
+- 给 electron-builder 传 --publish never。其默认策略是 onTagOrDraft，CI 里已存在同名草稿 Release 时它会在打包阶段自行上传并要求 GH_TOKEN，缺 token 直接导致两个平台构建失败。发布资产由工作流用 gh 上传；签名改为「证书与身份都配置齐全才启用」，并在各构建作业摘要里记录签名配置状态。
+  - _EN:_
+    - Pass --publish never to electron-builder. Its default policy is onTagOrDraft, so in CI an existing draft release for the same version made it try to upload during packaging and fail on a missing GH_TOKEN — which broke both platform builds. Release assets are uploaded by the workflow via gh; signing is now enabled only when a certificate is also configured, and each build job records the signing configuration state in its summary.
+
+
+## English
+
+Release **v3.15.2** (2026-09-24)
+
+### Fixes
+
+- Pass --publish never to electron-builder. Its default policy is onTagOrDraft, so in CI an existing draft release for the same version made it try to upload during packaging and fail on a missing GH_TOKEN — which broke both platform builds. Release assets are uploaded by the workflow via gh; signing is now enabled only when a certificate is also configured, and each build job records the signing configuration state in its summary.
+  - _中文：_
+    - 给 electron-builder 传 --publish never。其默认策略是 onTagOrDraft，CI 里已存在同名草稿 Release 时它会在打包阶段自行上传并要求 GH_TOKEN，缺 token 直接导致两个平台构建失败。发布资产由工作流用 gh 上传；签名改为「证书与身份都配置齐全才启用」，并在各构建作业摘要里记录签名配置状态。
+
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.1...v3.15.2
+
 ## v3.15.1 — 2026-09-24
 
 ## 中文
