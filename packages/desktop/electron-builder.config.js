@@ -233,9 +233,19 @@ const PACKAGING_PRUNE_PATTERNS = [
   "!**/SECURITY*",
 ];
 
+/**
+ * 产物名里的产品名不带空格。
+ *
+ * electron-builder 会把更新清单（latest.yml / latest-mac.yml）里的下载 url 规范成无空格形式
+ * （`Yoyo Code-1.2.3-win-x64.exe` → `Yoyo-Code-1.2.3-win-x64.exe`），而磁盘上的文件与
+ * `gh release upload` 上传的资产名仍带空格。客户端照清单下载就会 404。
+ * 这里直接用同一种规范名，让「文件名 / 更新清单 / Release 资产」三者一致。
+ */
+const desktopArtifactProductName = desktopProductIdentity.productName.replace(/\s+/gu, "-");
+
 function buildDesktopArtifactName(platformName, extension = "${ext}") {
   // 测试环境产物必须和正式安装包文件名区分，避免上传、下载或人工验收时混用。
-  return `\${productName}-\${version}-${platformName}-\${arch}${desktopArtifactEnvSuffix}.${extension}`;
+  return `${desktopArtifactProductName}-\${version}-${platformName}-\${arch}${desktopArtifactEnvSuffix}.${extension}`;
 }
 
 function runAsarCommand(args) {
@@ -763,9 +773,10 @@ export default {
     repo: "Yoyo-code",
     // 发布走 CI 的两段式流程（先草稿，两个平台构建完成后转正式），构建阶段不发布资产。
     releaseType: "draft",
-    // GitHub Release 资产支持 Range 但不支持 multipart/byteranges。关闭 multiple range 后仍是差分更新：
-    // electron-updater 会下载同一 Release 里的 *.blockmap，按单 Range 顺序拉取差异块；
-    // 否则 Windows/macOS 用户每次更新都要重新下载 300MB+ 整包。
-    useMultipleRangeRequest: false,
+    // 不要在这里写 useMultipleRangeRequest：该字段只对 generic provider 合法，
+    // 加在 github provider 下会让 electron-builder 配置校验直接失败（打包步骤整体中断）。
+    // 差分下载不受影响——electron-updater 的 GitHubProvider 内部就固定
+    // isUseMultipleRangeRequest=false（GitHub 资产走 S3，不支持 multipart/byteranges），
+    // 仍会下载同一 Release 里的 *.blockmap 按单 Range 拉取差异块。
   },
 };
