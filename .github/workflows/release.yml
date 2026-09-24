@@ -134,7 +134,8 @@ jobs:
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
       ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
       # 配置了签名身份才开启签名；未配置时产出未签名安装包（用户侧会有 Gatekeeper 提示）。
-      ZCODE_ENABLE_MAC_SIGN: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && '1' || '0' }}
+      # 只在「身份 + 证书」都配置齐全时才启用签名：只配了身份的半套配置会让打包在签名阶段失败。
+      ZCODE_ENABLE_MAC_SIGN: ${{ secrets.MAC_CSC_LINK != '' && secrets.APPLE_SIGNING_IDENTITY != '' && '1' || '0' }}
       APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
       CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -158,6 +159,21 @@ jobs:
       - name: 对齐打包版本号
         run: node scripts/release/apply-version.mjs ${{ needs.prepare.outputs.version }}
 
+      - name: 记录构建环境（只看有无，不打印值）
+        shell: bash
+        run: |
+          {
+            echo "### macOS 构建环境"
+            echo
+            echo '| 项 | 状态 |'
+            echo '| --- | --- |'
+            echo "| 签名证书 CSC_LINK | $([ -n "${CSC_LINK:-}" ] && echo 已生效 || echo 未配置) |"
+            echo "| 证书密码 CSC_KEY_PASSWORD | $([ -n "${CSC_KEY_PASSWORD:-}" ] && echo 已生效 || echo 未配置) |"
+            echo "| macOS 签名身份 | $([ -n "${APPLE_SIGNING_IDENTITY:-}" ] && echo 已配置 || echo 未配置) |"
+            echo "| ZCODE_ENABLE_MAC_SIGN | ${ZCODE_ENABLE_MAC_SIGN:-未设置} |"
+            echo "| ZCODE_CUA_HELPER_BUILD_ID | $([ -n "${ZCODE_CUA_HELPER_BUILD_ID:-}" ] && echo 已配置 || echo 未配置) |"
+            echo "| ZCODE_ENV | ${ZCODE_ENV:-未设置} |"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: 构建 macOS 安装包（arm64）
         run: pnpm bundle:desktop -- --os mac --arch arm64
 
@@ -206,7 +222,7 @@ jobs:
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
       ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
       # 需要 Authenticode 证书时才配置；未配置时产出未签名安装包（SmartScreen 会提示未知发布者）。
-      CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      CSC_LINK: ${{ secrets.WIN_CSC_LINK != '' && secrets.WIN_CSC_KEY_PASSWORD != '' && secrets.WIN_CSC_LINK || '' }}
       CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
       ZCODE_CUA_HELPER_BUILD_ID: ${{ vars.ZCODE_CUA_HELPER_BUILD_ID }}
     steps:
@@ -228,6 +244,21 @@ jobs:
       - name: 对齐打包版本号
         run: node scripts/release/apply-version.mjs ${{ needs.prepare.outputs.version }}
 
+      - name: 记录构建环境（只看有无，不打印值）
+        shell: bash
+        run: |
+          {
+            echo "### Windows 构建环境"
+            echo
+            echo '| 项 | 状态 |'
+            echo '| --- | --- |'
+            echo "| 签名证书 CSC_LINK | $([ -n "${CSC_LINK:-}" ] && echo 已生效 || echo 未配置) |"
+            echo "| 证书密码 CSC_KEY_PASSWORD | $([ -n "${CSC_KEY_PASSWORD:-}" ] && echo 已生效 || echo 未配置) |"
+            echo "| macOS 签名身份 | $([ -n "${APPLE_SIGNING_IDENTITY:-}" ] && echo 已配置 || echo 未配置) |"
+            echo "| ZCODE_ENABLE_MAC_SIGN | ${ZCODE_ENABLE_MAC_SIGN:-未设置} |"
+            echo "| ZCODE_CUA_HELPER_BUILD_ID | $([ -n "${ZCODE_CUA_HELPER_BUILD_ID:-}" ] && echo 已配置 || echo 未配置) |"
+            echo "| ZCODE_ENV | ${ZCODE_ENV:-未设置} |"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: 构建 Windows 安装包（x64）
         run: pnpm bundle:desktop -- --os win --arch x64
 
