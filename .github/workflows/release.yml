@@ -73,13 +73,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          TAG="${{ steps.prepare.outputs.tag }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json CHANGELOG.md
-          git commit -m "chore: release ${{ steps.prepare.outputs.tag }}"
-          git tag -a "${{ steps.prepare.outputs.tag }}" -m "Release ${{ steps.prepare.outputs.tag }}"
-          git push origin HEAD:main
-          git push origin "${{ steps.prepare.outputs.tag }}"
+          # 版本号与日志可能已经在 dev 上准备好并合入（本仓库的常规流程）。
+          # 此时没有文件变更可提交，但 tag 与 Release 仍必须创建——不能因为 git commit 无内容而中断发布。
+          if git diff --cached --quiet; then
+            echo "版本与 CHANGELOG 无变化，跳过 release 提交"
+          else
+            git commit -m "chore: release ${TAG}"
+            git push origin HEAD:main
+          fi
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "tag ${TAG} 已存在，跳过创建"
+          else
+            git tag -a "${TAG}" -m "Release ${TAG}"
+          fi
+          git push origin "${TAG}"
 
       - name: 创建草稿 Release
         if: steps.prepare.outputs.should_release == 'true'
