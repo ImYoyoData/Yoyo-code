@@ -3,6 +3,10 @@ interface CustomAboutDialogHtmlInput {
   appVersion: string;
   copyright: string;
   optimizationLine: string;
+  /** 作者署名。 */
+  authorLine: string;
+  /** 二次开发来源说明。 */
+  basedOnLine: string;
   versionLabel: string;
   okButtonLabel: string;
 }
@@ -59,7 +63,7 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
       .about-window {
         width: 100%;
         max-width: 256px;
-        height: 280px;
+        height: 316px;
         display: grid;
         place-items: stretch;
         padding: 0;
@@ -200,6 +204,8 @@ export function createCustomAboutDialogHtml(input: CustomAboutDialogHtmlInput): 
             ${escapeHtml(input.versionLabel)} ${escapeHtml(input.appVersion)}
           </h1>
           <div class="meta">
+            <div>${escapeHtml(input.authorLine)}</div>
+            <div>${escapeHtml(input.basedOnLine)}</div>
             ${input.optimizationLine ? `<div>${escapeHtml(input.optimizationLine)}</div>` : ""}
             <div>${escapeHtml(input.copyright)}</div>
           </div>
