@@ -102,11 +102,11 @@ jobs:
           TAG="${{ steps.prepare.outputs.tag }}"
           NOTES="${{ steps.prepare.outputs.notes_file }}"
           # 失败重跑时草稿可能已存在；直接 create 会报 "already exists" 而不是继续发布。
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release ${TAG} 已存在，更新正文"
-            gh release edit "$TAG" --notes-file "$NOTES"
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$NOTES"
           else
-            gh release create "$TAG" --draft --title "$TAG" --notes-file "$NOTES"
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --title "$TAG" --notes-file "$NOTES"
           fi
 
       - name: 汇总
@@ -206,7 +206,7 @@ jobs:
             echo "::error::macOS 构建没有产出可上传的安装包"
             exit 1
           fi
-          gh release upload "$TAG" "${files[@]}" --clobber
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "${files[@]}" --clobber
           printf '上传 %d 个文件:\n' "${#files[@]}" >> "$GITHUB_STEP_SUMMARY"
           printf -- '- %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -289,7 +289,7 @@ jobs:
             echo "::error::Windows 构建没有产出可上传的安装包"
             exit 1
           fi
-          gh release upload "$TAG" "${files[@]}" --clobber
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "${files[@]}" --clobber
           printf '上传 %d 个文件:\n' "${#files[@]}" >> "$GITHUB_STEP_SUMMARY"
           printf -- '- %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -304,7 +304,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.prepare.outputs.tag }}
+          # 该 job 没有 checkout，gh 无法从 git remote 推断仓库，必须显式指定。
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          gh release edit "$TAG" --draft=false --latest
-          echo "已发布 $TAG" >> "$GITHUB_STEP_SUMMARY"
+          if ! gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "::error::找不到 $TAG 的 Release（prepare 阶段可能失败或未创建草稿）"
+            exit 1
+          fi
+          # 先转正式再设置 latest：草稿状态下设置 latest 会被 GitHub 拒绝。
+          gh release edit "$TAG" --repo "$REPO" --draft=false
+          gh release edit "$TAG" --repo "$REPO" --latest
+          gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isLatest,publishedAt \
+            --template '{{.tagName}} draft={{.isDraft}} latest={{.isLatest}} published={{.publishedAt}}' \
+            >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
