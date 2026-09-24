@@ -56,7 +56,7 @@ const ABOUT_APPLICATION_NAME = "Yoyo Code Desktop App";
 // 自定义 About 内容本体是 256x280；原生窗口如果同尺寸会让内容贴满透明窗口边界。
 // 这里给 BrowserWindow 额外留出背景呼吸空间，避免正式 About 看起来比 demo 更局促。
 const ABOUT_WINDOW_WIDTH = 256;
-const ABOUT_WINDOW_HEIGHT = 312;
+const ABOUT_WINDOW_HEIGHT = 348;
 const ABOUT_MESSAGES: Record<
   Locale,
   {
@@ -64,6 +64,8 @@ const ABOUT_MESSAGES: Record<
     versionLabel: string;
     okButtonLabel: string;
     optimizedForAppleSilicon: string;
+    author: string;
+    basedOn: string;
     copyright: (year: number) => string;
   }
 > = {
@@ -72,6 +74,8 @@ const ABOUT_MESSAGES: Record<
     versionLabel: "版本",
     okButtonLabel: "确定",
     optimizedForAppleSilicon: "已针对 Apple Silicon 优化。",
+    author: "作者：Yoyo",
+    basedOn: "基于 ZCode 二次开发。",
     copyright: (year) => `版权所有 © ${year} Yoyo Code。`,
   },
   "en-US": {
@@ -79,6 +83,8 @@ const ABOUT_MESSAGES: Record<
     versionLabel: "version",
     okButtonLabel: "OK",
     optimizedForAppleSilicon: "Optimized for Apple Silicon.",
+    author: "Author: Yoyo",
+    basedOn: "A secondary development based on ZCode.",
     copyright: (year) => `Copyright © ${year} Yoyo Code.`,
   },
 };
@@ -259,6 +265,8 @@ export async function showAboutDialog(
         appVersion: snapshot.appVersion,
         copyright: formatAboutCopyright(undefined, locale),
         optimizationLine: formatAboutOptimizationLine(snapshot, locale),
+        authorLine: aboutMessages.author,
+        basedOnLine: aboutMessages.basedOn,
         versionLabel: aboutMessages.versionLabel,
         okButtonLabel: aboutMessages.okButtonLabel,
       }),

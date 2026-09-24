@@ -1,14 +1,10 @@
 /* eslint-disable max-lines -- autoUpdater 需要集中维护 Electron 事件、菜单状态与 IPC 交互，过度拆分会让更新状态流更难追踪 */
 import type { ISettingService } from "@zcode/services";
 import {
-  DEFAULT_LOCALE,
-  DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-  desktopMenuMessageIds,
+  DEFAULT_LOCALE,  desktopMenuMessageIds,
   formatDesktopMenuMessage,
   getDesktopMenuMessage,
-  PlatformChannels,
-  resolveRuntimeZCodeEndpointOrigin,
-  ZCODE_VERSION,
+  PlatformChannels,  ZCODE_VERSION,
   type ElectronReleaseChannel,
   type Locale,
   type PostUpdateReleaseNotesPayload,
@@ -19,8 +15,16 @@ import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import pkg, { CancellationToken } from "electron-updater";
 import semver from "semver";
 import { logger } from "./logger.js";
-import { getElectronReleasePlatform, ManifestUpdateProvider } from "./manifestUpdateProvider.js";
+import { getElectronReleasePlatform } from "./releasePlatform.js";
 const { autoUpdater } = pkg;
+
+/**
+ * 二次开发版本的发布仓库：更新检查与下载都以这里的 Release 为准。
+ * 必须与 electron-builder.config.js 的 publish(provider=github) 保持一致，
+ * 否则打包产物里的 app-update.yml 会指向别处。
+ */
+export const GITHUB_RELEASE_OWNER = "ImYoyoData";
+export const GITHUB_RELEASE_REPO = "Yoyo-code";
 
 export const CHECK_FOR_UPDATE_MENU_ID = "check-for-update";
 const AUTO_UPDATE_POLL_INTERVAL_MS = 60 * 60 * 1000;
@@ -114,8 +118,6 @@ interface InitAutoUpdaterOptions {
   settingService?: SettingServiceLike;
   locale?: Locale;
   updateFeedSource?: RuntimeUpdateFeedSource;
-  deviceMid?: string;
-  resolveEndpointOrigin?: () => string | Promise<string>;
 }
 
 let quitAndInstallInFlight = false;
@@ -751,26 +753,37 @@ async function syncAutoUpdateCheckChannelFromSettings(
   activeAutoUpdateCheckChannel = nextChannel;
 }
 
-function applyManifestUpdateProvider(options: InitAutoUpdaterOptions): void {
-  const manifestUrl = options.updateFeedSource?.url.trim();
+/**
+ * 装配更新源。
+ *
+ * 发布包固定读取 GitHub Release：electron-updater 的 github provider 会取最新 Release 里的
+ * `latest.yml` / `latest-mac.yml`，并按同一 Release 里的 `*.blockmap` 走差分下载
+ * （`useMultipleRangeRequest: false` → 单 Range 顺序拉取差异块，避免退化成整包下载）。
+ * 开发联调仍可用 `ZCODE_UPDATE_FEED_URL` 指向自建 generic 源，格式与 electron-builder 产物一致。
+ */
+function applyUpdaterFeed(options: InitAutoUpdaterOptions): void {
+  const feedOverrideUrl = options.updateFeedSource?.url.trim();
+  if (feedOverrideUrl) {
+    autoUpdater.setFeedURL({
+      provider: "generic",
+      url: feedOverrideUrl,
+      useMultipleRangeRequest: false,
+    });
+    logger.info(
+      `[auto-update] dev generic feed applied url=${redactUpdateFeedUrlForLog(feedOverrideUrl)}`,
+    );
+    return;
+  }
+
   autoUpdater.setFeedURL({
-    provider: "custom",
-    updateProvider: ManifestUpdateProvider,
-    endpointOrigin: DEFAULT_ZCODE_ENDPOINT_ORIGIN,
-    ...(manifestUrl ? { manifestUrl } : {}),
-    releasePlatform: getElectronReleasePlatform(),
-    deviceMid: options.deviceMid,
-    resolveEndpointOrigin:
-      options.resolveEndpointOrigin ?? (() => resolveRuntimeZCodeEndpointOrigin(process.env)),
-    resolveReleaseChannel: async () => {
-      availableUpdateChannel = await resolveUpdateReleaseChannel(options.settingService);
-      return availableUpdateChannel;
-    },
+    provider: "github",
+    owner: GITHUB_RELEASE_OWNER,
+    repo: GITHUB_RELEASE_REPO,
+    // GitHub Release 资产支持 Range，但不支持 multipart/byteranges；关闭后仍是差分下载。
+    useMultipleRangeRequest: false,
   });
   logger.info(
-    manifestUrl
-      ? `[auto-update] service manifest provider applied platform=${getElectronReleasePlatform()} manifestUrl=${redactUpdateFeedUrlForLog(manifestUrl)}`
-      : `[auto-update] service manifest provider applied platform=${getElectronReleasePlatform()}`,
+    `[auto-update] github release feed applied owner=${GITHUB_RELEASE_OWNER} repo=${GITHUB_RELEASE_REPO} platform=${getElectronReleasePlatform()}`,
   );
 }
 
@@ -1504,7 +1517,7 @@ export async function initAutoUpdater(options: InitAutoUpdaterOptions = {}): Pro
   // 这里仅在 Windows 关闭“退出即自动安装”，要求用户显式点更新；其他平台保持原有行为，避免改动既有升级链路。
   autoUpdater.autoInstallOnAppQuit = process.platform !== "win32";
   autoUpdater.logger = logger;
-  applyManifestUpdateProvider(options);
+  applyUpdaterFeed(options);
 
   const triggerCheckForUpdates = (reason: string) => {
     if (checkForUpdatesInFlight) {

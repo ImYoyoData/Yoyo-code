@@ -203,8 +203,8 @@ export function renderChangelogEntry({ version, date, commits, compareUrl }) {
   return `## v${version} — ${date}\n\n${notes}\n`;
 }
 
-export function prependChangelog(existing, entry) {
-  const trimmed = String(existing ?? "").trim();
+export function prependChangelog(existing, entry, version) {
+  const trimmed = stripChangelogEntry(String(existing ?? "").trim(), version);
   if (!trimmed) {
     return `${CHANGELOG_HEADER}${entry}`;
   }
@@ -223,6 +223,29 @@ export function prependChangelog(existing, entry) {
   const head = lines.slice(0, firstEntryIndex).join("\n").trimEnd();
   const rest = lines.slice(firstEntryIndex).join("\n").trimEnd();
   return `${head}\n\n${entry}${rest}\n`;
+}
+
+/**
+ * 丢弃同一版本的旧条目。
+ *
+ * 版本号可能先在 dev 上手工推进并写好 CHANGELOG，之后发布流水线再为同一版本生成正式日志；
+ * 不去重就会留下两条同版本条目、正文却不一样。
+ */
+function stripChangelogEntry(text, version) {
+  if (!text || !version) {
+    return text;
+  }
+  const lines = text.split("\n");
+  const startIndex = lines.findIndex((line) => line.startsWith(`## v${version}`));
+  if (startIndex === -1) {
+    return text;
+  }
+  const nextIndex = lines.findIndex((line, index) => index > startIndex && line.startsWith("## v"));
+  const remaining = [
+    ...lines.slice(0, startIndex),
+    ...(nextIndex === -1 ? [] : lines.slice(nextIndex)),
+  ];
+  return remaining.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd();
 }
 
 function runGit(args, cwd) {

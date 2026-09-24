@@ -196,6 +196,12 @@ export const resolveBuildAliases = ({
     rootDirectory,
     "../../packages/shared/src/zcodeEndpoint.ts",
   ),
+  // 项目级配置目录常量单源下沉后的新 subpath；漏声明会被通用
+  // "@zcode/shared" 前缀改写成 `src/index.ts/project-config-dirs`，Desktop agent/SEA 打包失败。
+  "@zcode/shared/project-config-dirs": resolve(
+    rootDirectory,
+    "../../packages/shared/src/project-config-dirs.ts",
+  ),
   "@zcode/shared/node": resolve(rootDirectory, "../../packages/shared/src/node.ts"),
   "@zcode/shared": resolve(rootDirectory, "../../packages/shared/src/index.ts"),
   "@zcode/core": resolve(cliDirectory, "../core/dist/index.js"),

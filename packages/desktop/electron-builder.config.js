@@ -756,13 +756,16 @@ export default {
   },
   detectUpdateChannel: false,
   publish: {
-    provider: "generic",
-    // 当前 OSS/CDN 对多 Range 请求返回 206，但 Content-Type 仍是 application/x-msdownload，
-    // electron-updater 会因缺少 multipart/byteranges 直接回退整包下载。关闭 multiple range 后仍走差分，
-    // 只是按单 Range 顺序拉取差异块，避免 Windows 用户更新时从约 15MB 退化成 300MB+ 全量包。
+    // 更新源是二次开发版自己的 GitHub Release；owner/repo 必须与
+    // packages/desktop/src/main/autoUpdater.ts 的 GITHUB_RELEASE_* 保持一致。
+    provider: "github",
+    owner: "ImYoyoData",
+    repo: "Yoyo-code",
+    // 发布走 CI 的两段式流程（先草稿，两个平台构建完成后转正式），构建阶段不发布资产。
+    releaseType: "draft",
+    // GitHub Release 资产支持 Range 但不支持 multipart/byteranges。关闭 multiple range 后仍是差分更新：
+    // electron-updater 会下载同一 Release 里的 *.blockmap，按单 Range 顺序拉取差异块；
+    // 否则 Windows/macOS 用户每次更新都要重新下载 300MB+ 整包。
     useMultipleRangeRequest: false,
-    // 新客户端运行时使用服务端 manifest provider；这里仅保留 electron-builder 必需的
-    // generic publish 占位，避免打包产物继续携带可配置的旧 stable feed。
-    url: "http://localhost:8081",
   },
 };

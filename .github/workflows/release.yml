@@ -1,0 +1,274 @@
+# 推送到 main 即自动发布：版本号 → 双语更新日志 → macOS / Windows 安装包 → GitHub Release。
+#
+# 设计要点：
+# - prepare 先建「草稿」Release，两个平台构建完成后才由 finalize 转正式；任一平台失败则保留草稿供排查。
+# - 版本号来自 Conventional Commits（feat → minor，fix/perf/chore → patch，`!` 或 BREAKING CHANGE → major），
+#   也可以用 workflow_dispatch 手动指定。
+# - 发布提交（chore: release vX.Y.Z）不会再触发一次发布，避免自激循环。
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 版本增量（auto = 按提交信息推断）
+        type: choice
+        options: [auto, patch, minor, major]
+        default: auto
+      version:
+        description: 指定版本号（例如 4.0.0，留空则按 bump 计算）
+        type: string
+        required: false
+
+# 创建/更新 Release、推送版本提交与 tag 都需要写权限。
+permissions:
+  contents: write
+
+# 发布流程不允许被后续推送打断。
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    # 发布提交本身不再触发新一轮发布。
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      !contains(github.event.head_commit.message, 'chore: release v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      should_release: ${{ steps.prepare.outputs.should_release }}
+      version: ${{ steps.prepare.outputs.version }}
+      tag: ${{ steps.prepare.outputs.tag }}
+      notes_file: ${{ steps.prepare.outputs.notes_file }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 生成更新日志需要完整历史与已有 tag。
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+
+      - name: 计算版本号并生成双语更新日志
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "${{ inputs.version }}" ]; then
+            args+=(--version "${{ inputs.version }}")
+          fi
+          if [ -n "${{ inputs.bump }}" ] && [ "${{ inputs.bump }}" != "auto" ]; then
+            args+=(--bump "${{ inputs.bump }}")
+          fi
+          node scripts/release/prepare-release.mjs "${args[@]}"
+
+      - name: 提交版本号与更新日志并打 tag
+        if: steps.prepare.outputs.should_release == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.prepare.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json CHANGELOG.md
+          # 版本号与日志可能已经在 dev 上准备好并合入（本仓库的常规流程）。
+          # 此时没有文件变更可提交，但 tag 与 Release 仍必须创建——不能因为 git commit 无内容而中断发布。
+          if git diff --cached --quiet; then
+            echo "版本与 CHANGELOG 无变化，跳过 release 提交"
+          else
+            git commit -m "chore: release ${TAG}"
+            git push origin HEAD:main
+          fi
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "tag ${TAG} 已存在，跳过创建"
+          else
+            git tag -a "${TAG}" -m "Release ${TAG}"
+          fi
+          git push origin "${TAG}"
+
+      - name: 创建草稿 Release
+        if: steps.prepare.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.prepare.outputs.tag }}" \
+            --draft \
+            --title "${{ steps.prepare.outputs.tag }}" \
+            --notes-file "${{ steps.prepare.outputs.notes_file }}"
+
+      - name: 汇总
+        if: steps.prepare.outputs.should_release == 'true'
+        run: |
+          {
+            echo "### 待发布 ${{ steps.prepare.outputs.tag }}"
+            echo
+            echo '```'
+            cat "${{ steps.prepare.outputs.notes_file }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build-macos:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      ZCODE_ENV: production
+      # 安装包不消费 mock-cdn，跳过远端 Node 分发下载可以显著缩短构建时间。
+      ZCODE_SKIP_REMOTE_ASSETS: "1"
+      HUSKY: "0"
+      # GH 托管 runner 直连官方下载源，比默认的 npmmirror 更快。
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+      # 配置了签名身份才开启签名；未配置时产出未签名安装包（用户侧会有 Gatekeeper 提示）。
+      ZCODE_ENABLE_MAC_SIGN: ${{ secrets.APPLE_SIGNING_IDENTITY != '' && '1' || '0' }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+      ZCODE_CUA_HELPER_BUILD_ID: ${{ vars.ZCODE_CUA_HELPER_BUILD_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 对齐打包版本号
+        run: node scripts/release/apply-version.mjs ${{ needs.prepare.outputs.version }}
+
+      - name: 构建 macOS 安装包（arm64）
+        run: pnpm bundle:desktop -- --os mac --arch arm64
+
+      - name: 留存构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installers-${{ needs.prepare.outputs.version }}
+          if-no-files-found: error
+          path: |
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/latest-mac.yml
+            packages/desktop/dist/*.blockmap
+
+      - name: 上传到 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(
+            packages/desktop/dist/*.dmg
+            packages/desktop/dist/*.zip
+            packages/desktop/dist/latest-mac.yml
+            packages/desktop/dist/*.blockmap
+          )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::macOS 构建没有产出可上传的安装包"
+            exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          printf '上传 %d 个文件:\n' "${#files[@]}" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
+
+  build-windows:
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      ZCODE_ENV: production
+      ZCODE_SKIP_REMOTE_ASSETS: "1"
+      HUSKY: "0"
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+      # 需要 Authenticode 证书时才配置；未配置时产出未签名安装包（SmartScreen 会提示未知发布者）。
+      CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      ZCODE_CUA_HELPER_BUILD_ID: ${{ vars.ZCODE_CUA_HELPER_BUILD_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 对齐打包版本号
+        run: node scripts/release/apply-version.mjs ${{ needs.prepare.outputs.version }}
+
+      - name: 构建 Windows 安装包（x64）
+        run: pnpm bundle:desktop -- --os win --arch x64
+
+      - name: 留存构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers-${{ needs.prepare.outputs.version }}
+          if-no-files-found: error
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/latest.yml
+            packages/desktop/dist/*.blockmap
+
+      - name: 上传到 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/latest.yml
+            packages/desktop/dist/*.blockmap
+          )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::Windows 构建没有产出可上传的安装包"
+            exit 1
+          fi
+          gh release upload "$TAG" "${files[@]}" --clobber
+          printf '上传 %d 个文件:\n' "${#files[@]}" >> "$GITHUB_STEP_SUMMARY"
+          printf -- '- %s\n' "${files[@]}" >> "$GITHUB_STEP_SUMMARY"
+
+  finalize:
+    needs: [prepare, build-macos, build-windows]
+    # 没有新提交时 build 两个 job 会被跳过，GitHub 仍会认为依赖已满足，这里必须自己再判一次。
+    if: needs.prepare.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 转为正式 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false --latest
+          echo "已发布 $TAG" >> "$GITHUB_STEP_SUMMARY"

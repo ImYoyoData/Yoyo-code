@@ -8,7 +8,6 @@ import type {
   ProviderFamilyDomain,
 } from "@zcode/shared";
 import {
-  BUILTIN_MODEL_PROVIDER_IDS,
   isStartPlanModelProviderId,
   resolveModelProviderFamilySpecByProviderId,
   resolveProviderFamilyDomainFromOAuthProvider,
@@ -22,6 +21,7 @@ import {
   type PresetProviderSpec,
 } from "@/settings/model-provider-section/constants.js";
 import { pickCodingPlanEntitlementProvider } from "@/lib/codingPlanProvider.js";
+import { pickRenderableFallbackNodeKey } from "@/settings/model-provider-section/modelProviderNavigationFallback.js";
 import {
   createCodingPlanProviderNodeKey,
   createCustomProviderNodeKey,
@@ -259,8 +259,9 @@ export function useModelProviderNavigation({
       ));
 
   const fallbackNodeKey = resolveFallbackModelProviderNodeKey({
-    selectedNodeKey,
     selectableNavigationItems,
+    // 侧栏键空间（即左侧列表）与列表渲染顺序一致，兜底时取第一个已配置的供应商。
+    sideNavigationNodeKeys: [...sideNavigationItemByKey.keys()],
   });
   useEffect(() => {
     const hasSelectedNode = selectedNodeKey ? sideNavigationItemByKey.has(selectedNodeKey) : false;
@@ -329,30 +330,31 @@ function resolvePresetFamilyStatusProvider({
   );
 }
 
-function resolveFallbackModelProviderNodeKey({
-  selectedNodeKey,
+/**
+ * 没有有效选中项时的回退目标。
+ *
+ * 初始化优先级（账号时代的套餐/预置入口）推导出的键可能在本分支的侧栏里并不存在，
+ * 取舍规则与原因见 `pickRenderableFallbackNodeKey`。
+ */
+export function resolveFallbackModelProviderNodeKey({
   selectableNavigationItems,
+  sideNavigationNodeKeys,
 }: {
-  selectedNodeKey: string | null;
   selectableNavigationItems: Array<
     Exclude<ModelProviderNavGroup["items"][number], { type: "codingPlanLoading" }>
   >;
+  /** 侧栏（左侧列表）里真实存在的键，忽略顺序即渲染顺序。 */
+  sideNavigationNodeKeys: readonly string[];
 }): string | null {
+  // App OAuth 登录成功后会按 active provider 隐藏另一组预置入口。
+  // 当前选中项消失时使用初始化优先级回落到对应 family，而不是把连接方式塞回侧栏。
   const initialConnectionItem = pickInitialConnectionNavigationItem(selectableNavigationItems);
-  const initialSideNodeKey = initialConnectionItem
-    ? resolveSideNavigationNodeKeyForConnectionItem(initialConnectionItem)
-    : null;
-  if (isFamilyPresetNodeKey(selectedNodeKey) && initialSideNodeKey) {
-    // App OAuth 登录成功后会按 active provider 隐藏另一组预置入口。
-    // 当前选中项消失时使用初始化优先级回落到对应 family，而不是把连接方式塞回侧栏。
-    return initialSideNodeKey;
-  }
-
-  // 初始化只在没有有效选中项时发生；如果当前用户选择仍有效，上层 effect 不会调用 fallback 抢焦点。
-  return (
-    initialSideNodeKey ??
-    resolveSideNavigationNodeKeyForConnectionItem(selectableNavigationItems[0] ?? null)
-  );
+  return pickRenderableFallbackNodeKey({
+    preferredNodeKey: initialConnectionItem
+      ? resolveSideNavigationNodeKeyForConnectionItem(initialConnectionItem)
+      : null,
+    sideNavigationNodeKeys,
+  });
 }
 
 function resolveSelectedProviderFamilyConnectionItem({
@@ -510,14 +512,5 @@ function isPlanConnectionNavigationItem(
   return (
     (item.type === "codingPlan" && !isStartPlanModelProviderId(item.presetId)) ||
     item.type === "teamPlan"
-  );
-}
-
-function isFamilyPresetNodeKey(nodeKey: string | null): boolean {
-  return (
-    nodeKey?.startsWith("coding-plan:") === true ||
-    nodeKey?.startsWith("team:") === true ||
-    nodeKey === `preset:${BUILTIN_MODEL_PROVIDER_IDS.zaiStartPlan}` ||
-    nodeKey === `preset:${BUILTIN_MODEL_PROVIDER_IDS.bigmodelStartPlan}`
   );
 }
