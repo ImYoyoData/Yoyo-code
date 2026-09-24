@@ -20,6 +20,11 @@ import {
   type ZCodeCommand,
 } from "@zcode/shared";
 import { DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS } from "@zcode/shared";
+import {
+  AGENTS_PROJECT_CONFIG_DIR_NAME,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "@zcode/shared/project-config-dirs";
 import type { ICommandsService } from "./commands.js";
 import { CommandFileParser, type CommandFileFormat } from "./commandFileParser.js";
 import { readInstalledPluginRoots } from "#src/plugins/installedPluginRoots.js";
@@ -52,8 +57,8 @@ const CODEX_PLUGIN_MANIFEST_PATH = join(".codex-plugin", "plugin.json");
 const ZCODE_COMMAND_DESCRIPTOR: CommandAgentSourceDescriptor = {
   agentSource: "zcodeAgent",
   directorySource: "zcode",
-  userDirectorySegments: [".zcode", "commands"],
-  workspaceDirectorySegments: [".zcode", "commands"],
+  userDirectorySegments: [NATIVE_PROJECT_CONFIG_DIR_NAME, "commands"],
+  workspaceDirectorySegments: [NATIVE_PROJECT_CONFIG_DIR_NAME, "commands"],
   fileExtension: ".md",
   format: "markdown",
   namespaceSeparator: "/",
@@ -66,11 +71,17 @@ const COMMAND_AGENT_SOURCE_DESCRIPTORS: Record<CommandAgentSource, CommandAgentS
 
 const COMMAND_DIRECTORY_SOURCE_DESCRIPTORS: readonly CommandAgentSourceDescriptor[] = [
   ZCODE_COMMAND_DESCRIPTOR,
+  // 迁移前的 `.zcode/commands` 仍可能保存自定义命令，排在 `.agents` 之前只读兼容。
+  {
+    ...ZCODE_COMMAND_DESCRIPTOR,
+    userDirectorySegments: [LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "commands"],
+    workspaceDirectorySegments: [LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "commands"],
+  },
   {
     ...ZCODE_COMMAND_DESCRIPTOR,
     directorySource: "agents",
-    userDirectorySegments: [".agents", "commands"],
-    workspaceDirectorySegments: [".agents", "commands"],
+    userDirectorySegments: [AGENTS_PROJECT_CONFIG_DIR_NAME, "commands"],
+    workspaceDirectorySegments: [AGENTS_PROJECT_CONFIG_DIR_NAME, "commands"],
   },
 ];
 
@@ -86,7 +97,7 @@ function getUserCommandsRoot(agentSource?: CommandAgentSource): string {
 }
 
 function getUserCliConfigPath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "cli", "config.json");
+  return join(resolveUserHomeDir(), ".yoyo-code", "cli", "config.json");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -203,7 +214,7 @@ function readStorageDirFromConfig(config: Record<string, unknown>): string {
   const storage = isRecord(config.storage) ? config.storage : {};
   return typeof storage.dir === "string" && storage.dir.trim().length > 0
     ? storage.dir
-    : "~/.zcode";
+    : "~/.yoyo-code";
 }
 
 function readPluginConfigFromConfig(config: Record<string, unknown>): PluginConfigSummary {
@@ -996,7 +1007,7 @@ async function discoverCommandsFromDirectorySources(params: {
       scope: params.scope,
       ...(params.projectPath ? { projectPath: params.projectPath } : {}),
     });
-    // `.zcode` 是强优先级来源；只要读到有效命令，同 scope 的 `.agents` 就不再参与。
+    // `.yoyo-code` 是强优先级来源；只要读到有效命令，同 scope 的 `.agents` 就不再参与。
     if (descriptor.directorySource === "zcode" && discoveredCount > 0) {
       break;
     }

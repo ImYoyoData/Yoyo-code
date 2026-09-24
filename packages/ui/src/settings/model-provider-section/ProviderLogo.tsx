@@ -7,6 +7,7 @@ import { resolveTheme, type ResolvedTheme } from "@/useTheme.js";
 import alibabaModelStudioLogo from "@/assets/provider-icons/model-provider-alibaba-cloud.png";
 import anthropicLogo from "@/assets/provider-icons/model-provider-anthropic.png";
 import bigModelLogo from "@/assets/provider-icons/logo-bigmodel.svg";
+import commandCodeLogo from "@/assets/provider-icons/model-provider-commandcode.png";
 import deepSeekLogo from "@/assets/provider-icons/model-provider-deepseek.png";
 import miniMaxLogo from "@/assets/provider-icons/model-provider-minimax.png";
 import moonshotKimiLogo from "@/assets/provider-icons/model-provider-moonshot-kimi.png";
@@ -32,6 +33,7 @@ const BUILTIN_PROVIDER_LOGO_ASSETS: Readonly<Record<string, BuiltinProviderLogoA
   // 用户指定 Dock 应用图标；同名旧 SVG 带灰色描边，不能当作同一素材复用。
   zai: { light: zaiLogo },
   bigmodel: { light: bigModelLogo },
+  commandcode: { light: commandCodeLogo },
   "start-plan": { light: startPlanLogo },
   "moonshot-kimi": { light: moonshotKimiLogo },
   minimax: { light: miniMaxLogo },

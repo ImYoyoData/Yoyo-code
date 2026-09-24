@@ -27,6 +27,7 @@ import {
 } from "./constants.js";
 import { InlineEditableProviderCard } from "./InlineEditableProviderCard.js";
 import {
+  ModelProviderEmptyCard,
   ModelProviderLoadingCard,
   PresetProviderPlaceholderCard,
   CodingPlanStatusPanel,
@@ -60,7 +61,7 @@ import {
 } from "@/lib/codingPlanFunnelTelemetry.js";
 import { useCodingPlanUpgradeDialog } from "@/settings/CodingPlanUpgradeDialogProvider.js";
 import { useProviderSettingsView } from "@/hooks/useProviderSettingsView.js";
-import type { ProviderSettingsView } from "@zcode/services";
+import type { ProviderSettingsModelListResult, ProviderSettingsView } from "@zcode/services";
 import type { SavePersonalModelDraftInput } from "@zcode/provider";
 import { resolveAccountProviderInspectionAccess } from "@/lib/accountProviderAccess.js";
 import { projectProviderSettingsViewToFormProviders } from "@/lib/providerSettingsFormProjection.js";
@@ -244,6 +245,7 @@ export function ModelProviderSectionDetail({
   onDelete,
   onReorderProviderModels,
   onTestModel,
+  onListProviderModels,
   onCodingPlanLogin,
   onRetryCodingPlan,
   onCodingPlanDisconnect,
@@ -283,6 +285,7 @@ export function ModelProviderSectionDetail({
   onDelete: (provider: ProviderSettingsFormProvider) => Promise<void>;
   onReorderProviderModels?: (providerId: string, modelIds: string[]) => Promise<void>;
   onTestModel: (providerId: string, modelId: string) => Promise<ModelConnectivityResult>;
+  onListProviderModels?: (providerId: string) => Promise<ProviderSettingsModelListResult>;
   onRetryCodingPlan?: () => void | Promise<void>;
   onCodingPlanLogin: (
     presetId: BuiltinModelProviderId,
@@ -318,6 +321,7 @@ export function ModelProviderSectionDetail({
     onSavePersonalModelDraft,
     onSetPersonalModelEnabled,
     onDeletePersonalModel,
+    onListProviderModels,
     settingsRevision: providerSettingsView?.revision,
   };
   const selectedPlanAccess = useMemo(() => {
@@ -391,7 +395,16 @@ export function ModelProviderSectionDetail({
   }, [selectedItemKey]);
 
   if (!selectedNavItem) {
-    return <ModelProviderLoadingCard loadingLabel={loadingLabel} />;
+    // Provider 列表加载完成后仍然没有可选项时，说明用户还没添加任何 Provider。
+    // 这里必须与加载态区分：继续显示加载卡片会让空列表看起来像永久卡住。
+    const providerListLoading = rootProviderSettingsRead.state.status === "loading";
+    return providerListLoading ? (
+      <ModelProviderLoadingCard loadingLabel={loadingLabel} />
+    ) : (
+      <ModelProviderEmptyCard
+        emptyLabel={intl.formatMessage({ id: "settings.modelProvider.emptyState" })}
+      />
+    );
   }
 
   if (selectedNavItem.type === "preset") {

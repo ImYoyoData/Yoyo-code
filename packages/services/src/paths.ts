@@ -8,6 +8,16 @@ import { DATA_BASE_DIR_FORBIDDEN_WINDOWS_INSTALL_DIR_ERROR_CODE } from "@zcode/s
 
 let _dataBaseDir: string | null = null;
 export const ZCODE_WINDOWS_APP_INSTALL_DIR_ENV = "ZCODE_WINDOWS_APP_INSTALL_DIR";
+
+/** 全局数据根目录名，用于 `{dataBaseDir}/.yoyo-code`。改这里即可整仓生效。 */
+export const YOYO_CODE_DATA_DIR_NAME = ".yoyo-code";
+
+/** 工作区内的项目级约定目录名，用于 `{workspace}/.yoyo-code/*`。 */
+export const YOYO_CODE_PROJECT_DIR_NAME = ".yoyo-code";
+
+/** 安装目录校验用的产品名，必须与 electron-builder 的 productName 一致。 */
+export const YOYO_CODE_PRODUCT_NAME = "Yoyo Code";
+
 const envDataBaseDir = process.env.ZCODE_DATA_BASE_DIR?.trim() || null;
 const defaultDataBaseDir = process.env.HOME?.trim() || homedir();
 
@@ -39,17 +49,17 @@ export function getDataBaseDir(): string {
   return defaultDataBaseDir;
 }
 
-/** {dataBaseDir}/.zcode */
+/** {dataBaseDir}/.yoyo-code */
 export function getZCodeDataRootDir(): string {
-  return join(getDataBaseDir(), ".zcode");
+  return join(getDataBaseDir(), YOYO_CODE_DATA_DIR_NAME);
 }
 
-/** 非项目对话共享的真实工作目录；默认 ~/.zcode/workspace/default。 */
+/** 非项目对话共享的真实工作目录；默认 ~/.yoyo-code/workspace/default。 */
 export function getConversationWorkspaceDir(): string {
   return join(getZCodeDataRootDir(), "workspace", "default");
 }
 
-/** {dataBaseDir}/.zcode/v2 */
+/** {dataBaseDir}/.yoyo-code/v2 */
 export function getAppConfigDir(): string {
   return join(getZCodeDataRootDir(), "v2");
 }
@@ -113,10 +123,10 @@ function collectWindowsForbiddenAppInstallDirs(
   const candidates = [
     options.appInstallDir,
     readEnvValue(env, ZCODE_WINDOWS_APP_INSTALL_DIR_ENV),
-    programFiles ? win32.join(programFiles, "ZCode") : null,
-    programFilesX86 ? win32.join(programFilesX86, "ZCode") : null,
-    programW6432 ? win32.join(programW6432, "ZCode") : null,
-    localAppData ? win32.join(localAppData, "Programs", "ZCode") : null,
+    programFiles ? win32.join(programFiles, YOYO_CODE_PRODUCT_NAME) : null,
+    programFilesX86 ? win32.join(programFilesX86, YOYO_CODE_PRODUCT_NAME) : null,
+    programW6432 ? win32.join(programW6432, YOYO_CODE_PRODUCT_NAME) : null,
+    localAppData ? win32.join(localAppData, "Programs", YOYO_CODE_PRODUCT_NAME) : null,
   ];
   const seen = new Set<string>();
   const result: string[] = [];
@@ -182,7 +192,7 @@ export function getGitCheckpointIndexRootDir(): string {
   return join(getZCodeDataRootDir(), "git-checkpoint-index");
 }
 
-/** ~/.zcode/v2/tasks-index.sqlite */
+/** ~/.yoyo-code/v2/tasks-index.sqlite */
 export function getTasksIndexDatabasePath(): string {
   return join(getAppConfigDir(), "tasks-index.sqlite");
 }
@@ -200,12 +210,12 @@ export function getWorkspaceHash(workspacePath: string, workspaceIdentity?: stri
     .slice(0, 12);
 }
 
-/** ~/.zcode/v2/sessions/{workspaceHash} */
+/** ~/.yoyo-code/v2/sessions/{workspaceHash} */
 function getTaskSessionDir(workspacePath: string, workspaceIdentity?: string): string {
   return join(getAppConfigDir(), "sessions", getWorkspaceHash(workspacePath, workspaceIdentity));
 }
 
-/** ~/.zcode/v2/sessions/{workspaceHash}/{taskId}.json */
+/** ~/.yoyo-code/v2/sessions/{workspaceHash}/{taskId}.json */
 export function getLegacyTaskSessionSnapshotPath(
   workspacePath: string,
   taskId: string,
@@ -214,7 +224,7 @@ export function getLegacyTaskSessionSnapshotPath(
   return join(getTaskSessionDir(workspacePath, workspaceIdentity), `${taskId}.json`);
 }
 
-/** ~/.zcode/v2/sessions/{workspaceHash}/{taskId}.deleted.json */
+/** ~/.yoyo-code/v2/sessions/{workspaceHash}/{taskId}.deleted.json */
 export function getLegacyDeletedTaskSessionSnapshotPath(
   workspacePath: string,
   taskId: string,
@@ -224,13 +234,13 @@ export function getLegacyDeletedTaskSessionSnapshotPath(
 }
 
 /**
- * Copy the .zcode/v2 data directory from one base dir to another.
+ * Copy the .yoyo-code/v2 data directory from one base dir to another.
  * Excludes setting.json and its transient atomic-write siblings — bootstrap
  * state must only live at the default homedir location.
  */
 export async function copyDataDirectory(oldBaseDir: string, newBaseDir: string): Promise<void> {
-  const oldDir = join(oldBaseDir, ".zcode", "v2");
-  const newDir = join(newBaseDir, ".zcode", "v2");
+  const oldDir = join(oldBaseDir, YOYO_CODE_DATA_DIR_NAME, "v2");
+  const newDir = join(newBaseDir, YOYO_CODE_DATA_DIR_NAME, "v2");
   await cp(oldDir, newDir, {
     recursive: true,
     force: false,

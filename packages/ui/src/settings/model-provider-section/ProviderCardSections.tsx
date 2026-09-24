@@ -12,6 +12,7 @@ import type {
   ProviderSettingsFormModel,
 } from "@/lib/providerSettingsFormTypes.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
+import type { ProviderSettingsModelListResult } from "@zcode/services";
 import type { ProviderApiType } from "@zcode/provider";
 import {
   TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
@@ -350,6 +351,7 @@ export function ProviderModelsSection({
   providerAccess,
   models,
   onTestModel,
+  onListModelIds,
   onModelCommit,
   onModelEnabledChange,
   onDeleteModel,
@@ -363,6 +365,8 @@ export function ProviderModelsSection({
   providerAccess?: ProviderConfigObject["access"];
   models: ProviderSettingsFormModel[];
   onTestModel?: (model: string) => Promise<ModelConnectivityResult>;
+  /** 拉取供应商端点声明的模型目录；已绑定当前 Provider，供新增模型时选择 ID。 */
+  onListModelIds?: () => Promise<ProviderSettingsModelListResult>;
   onModelCommit: (
     originalModelId: string,
     model: ProviderSettingsFormModel,
@@ -572,6 +576,7 @@ export function ProviderModelsSection({
           saving={addSaving}
           modelConfigResolutionPending={editor.pending}
           modelDefaultsLoaded={editor.defaultsLoaded}
+          onListModelIds={onListModelIds}
           onModelIdBlur={() => {
             void editor.flush().catch(() => undefined);
           }}

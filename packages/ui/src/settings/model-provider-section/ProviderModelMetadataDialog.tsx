@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import type { ModelConfigObject } from "@zcode/provider";
+import type { ProviderSettingsModelListResult } from "@zcode/services";
 import type {
   ProviderModelDraftValues,
   ProviderModelDraftCommitResult,
@@ -30,8 +31,8 @@ import {
   ModelConfigDraftFeedback,
   ModelConfigRestoreButton,
 } from "@/settings/model-provider-section/ProviderModelMetadataDialogActions.js";
+import { ProviderModelIdField } from "@/settings/model-provider-section/ProviderModelIdField.js";
 import { modelEditorControlStyle } from "@/settings/model-provider-section/modelEditorControlStyle.js";
-import { cn } from "@/components/lib/utils.js";
 import {
   ModelConfigHelp,
   ModelConfigInputLabel,
@@ -61,6 +62,7 @@ export function ProviderModelMetadataDialog({
   saving = false,
   modelDefaultsLoaded = false,
   onModelIdBlur,
+  onListModelIds,
 }: {
   mode?: "add" | "edit";
   open: boolean;
@@ -79,6 +81,8 @@ export function ProviderModelMetadataDialog({
   saving?: boolean;
   modelDefaultsLoaded?: boolean;
   onModelIdBlur?: () => void;
+  /** 按供应商端点拉取模型目录；仅新增模型且 ID 可编辑时提供，编辑态仍走改名语义。 */
+  onListModelIds?: () => Promise<ProviderSettingsModelListResult>;
 }) {
   const { intl } = useZCodeIntl();
   const [validationAttempt, setValidationAttempt] = useState(0);
@@ -99,6 +103,7 @@ export function ProviderModelMetadataDialog({
   // 编辑态仍保留上下文窗口自动聚焦和选中，方便直接修改已有模型配置。
   const shouldFocusModelIdInput = mode === "add";
   const shouldFocusContextWindowInput = mode === "edit";
+  const modelIdCatalogAvailable = mode === "add" && !modelIdReadOnly && Boolean(onListModelIds);
   const addModelConfigResolutionPending = smart && modelConfigResolutionPending;
   const compositionActiveRef = useRef(false);
   const handleTechnicalInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -178,19 +183,16 @@ export function ProviderModelMetadataDialog({
                 <label className="mb-1 block text-ui-base text-foreground-subtle">
                   {intl.formatMessage({ id: "settings.modelProvider.modelId" })}
                 </label>
-                <Input
-                  {...TECHNICAL_INPUT_ATTRIBUTES}
-                  type="text"
+                <ProviderModelIdField
                   autoFocus={shouldFocusModelIdInput}
-                  size="lg"
-                  className={cn("font-mono", modelEditorControlStyle(false))}
                   readOnly={modelIdReadOnly}
                   value={draft.idValue}
                   placeholder={intl.formatMessage({
                     id: "settings.modelProvider.modelId",
                   })}
-                  onChange={(event) => {
-                    onDraftChange({ idValue: event.target.value });
+                  onListModelIds={modelIdCatalogAvailable ? onListModelIds : undefined}
+                  onChange={(idValue) => {
+                    onDraftChange({ idValue });
                   }}
                   onBlur={onModelIdBlur}
                   onCompositionStart={handleCompositionStart}

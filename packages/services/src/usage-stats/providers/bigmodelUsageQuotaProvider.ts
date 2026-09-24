@@ -34,7 +34,11 @@ import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import type { ICredentialService } from "../../credential/credential.js";
 import type { IAccountRequestAuthService } from "../../model-provider/accountRequestAuthService.js";
 import { readApiJson } from "../../providers/api/apiJson.js";
-import { readEnv } from "../../oauth/providers/configUtils.js";
+
+/** 读取非空环境变量；空串按未设置处理。 */
+function readEnv(env: NodeJS.ProcessEnv, key: string): string | undefined {
+  return env[key]?.trim() || undefined;
+}
 import {
   buildZaiStartPlanBalanceUrl,
   fetchZaiStartPlanBalanceEnvelope,

@@ -2222,7 +2222,6 @@ function ConversationComposerImpl({
             error={visibleError}
             onDismiss={onDismissError}
             onOpenModelSettings={onOpenModelSettings}
-            onOpenUpgrade={onOpenModelUpgrade}
           />
         </div>
       ) : null}

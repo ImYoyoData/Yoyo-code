@@ -7,6 +7,7 @@ import {
   type ProviderSettingsFormModel,
 } from "@/lib/providerSettingsFormTypes.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
+import type { ProviderSettingsModelListResult } from "@zcode/services";
 import {
   isApiKeyAccess,
   type ProviderApiType,
@@ -144,6 +145,7 @@ export function InlineEditableProviderCard({
   onDeletePersonalModel,
   onDelete,
   onTestModel,
+  onListProviderModels,
   onReorderModelIds,
   readOnlyEndpoints,
   presetApiKeyUrl,
@@ -171,6 +173,7 @@ export function InlineEditableProviderCard({
   onDeletePersonalModel?: (providerId: string, modelId: string) => Promise<unknown>;
   onDelete?: () => void | Promise<void>;
   onTestModel?: (providerId: string, modelId: string) => Promise<ModelConnectivityResult>;
+  onListProviderModels?: (providerId: string) => Promise<ProviderSettingsModelListResult>;
   onReorderModelIds?: (modelIds: string[]) => Promise<void>;
   readOnlyEndpoints?: boolean;
   presetApiKeyUrl?: string;
@@ -629,6 +632,16 @@ export function InlineEditableProviderCard({
     [commitPendingDraft, onTestModel, provider.providerId],
   );
 
+  // 模型目录必须基于已保存的 Base URL 与 Key 才能请求；先 flush 本卡片草稿，
+  // 否则"刚填好供应商地址就添加模型"会永远拿到上一次落盘的端点。
+  const handleListModelIds = useCallback(async (): Promise<ProviderSettingsModelListResult> => {
+    if (!onListProviderModels) {
+      return { success: false, error: { code: "listing-unavailable", message: "" } };
+    }
+    await commitPendingDraft("model-directory");
+    return onListProviderModels(provider.providerId);
+  }, [commitPendingDraft, onListProviderModels, provider.providerId]);
+
   const handleModelCommit = useCallback(
     async (
       originalModelId: string,
@@ -848,6 +861,7 @@ export function InlineEditableProviderCard({
           providerAccess={provider.config.access}
           models={models}
           onTestModel={onTestModel ? handleTestModel : undefined}
+          onListModelIds={onListProviderModels ? handleListModelIds : undefined}
           onModelCommit={handleModelCommit}
           onModelEnabledChange={handleModelEnabledChange}
           onDeleteModel={handleDeleteModel}

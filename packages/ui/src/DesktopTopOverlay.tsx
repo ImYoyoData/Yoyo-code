@@ -8,7 +8,6 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { UpdateStatusButton } from "@/UpdateStatusButton.js";
 import { DesktopTopOverlayActionButton } from "@/DesktopTopOverlayActionButton.js";
 import {
   createWindowsCaptionControlsStyle,
@@ -141,7 +140,7 @@ export function DesktopTopOverlay({
             >
               <img
                 src={appLogoUrl}
-                alt="ZCode"
+                alt="Yoyo Code"
                 className="size-5 transition-opacity duration-150 group-hover:opacity-0"
                 draggable={false}
               />
@@ -202,20 +201,6 @@ export function DesktopTopOverlay({
               <MessageCirclePlus className="size-4" />
             </DesktopTopOverlayActionButton>
           </div>
-
-          {/* <div className="flex items-center [app-region:no-drag]"> */}
-          {/* 侧栏收起后，更新按钮之前会跟着“展开态的容器宽度阈值”一起被隐藏。
-                  但收起态本身已经改成把操作集中到顶部浮层里，如果这里还继续依赖侧栏宽度判断，
-                  用户就会在最需要全局入口的时候反而看不到更新按钮。
-                  所以展开态继续走容器查询，收起态则强制显示。 */}
-          <UpdateStatusButton
-            platform={platform}
-            version={updateReadyVersion}
-            updateState={updateState}
-            isMacDesktop={isMacDesktop}
-            isWindowsDesktop={isWindowsDesktop}
-          />
-          {/* </div> */}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import type { ProviderSettingsFormProvider } from "@/lib/providerSettingsFormTypes.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
-import type { ProviderSettingsView } from "@zcode/services";
+import type { ProviderSettingsView, ProviderSettingsModelListResult } from "@zcode/services";
 import { useServices } from "@/hooks/useServices.js";
 import { logger } from "@/logger.js";
 import { useProviderSettingsServiceView } from "@/hooks/useProviderSettingsView.js";
@@ -211,6 +211,12 @@ export function useModelProviders(target: {
     ],
   );
 
+  const listProviderModels = useCallback(
+    async (providerId: string): Promise<ProviderSettingsModelListResult> =>
+      providerSettingsService.listProviderModels({ providerId }),
+    [providerSettingsService],
+  );
+
   return {
     modelProviders: effectiveModelProviders,
     providerTemplates: providerSettingsView?.providerTemplates ?? [],
@@ -232,6 +238,7 @@ export function useModelProviders(target: {
     reorderProviderModels,
     saveDisplayOrder,
     testModelConnectivity,
+    listProviderModels,
     providerSettingsView,
   };
 }

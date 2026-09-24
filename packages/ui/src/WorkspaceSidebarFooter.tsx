@@ -9,7 +9,7 @@ import {
   TID_TASK_SETTINGS_BUTTON,
 } from "@zcode/shared";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar.js";
+import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
 import { cn } from "@/components/lib/utils.js";
 import { Button } from "@/components/ui/button.js";
 import {
@@ -64,7 +64,7 @@ function getSidebarProfileName(user?: UserInfo | null): string {
     return username;
   }
 
-  return "ZCode";
+  return "Yoyo Code";
 }
 
 function getSidebarProfileBadge(
@@ -130,41 +130,17 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   const zoomOutShortcutLabel = useShortcutCommandLabel("zoomOut");
   const resetZoomShortcutLabel = useShortcutCommandLabel("resetZoom");
   const isRestoringOAuthSession = useZCodeStore((state) => state.isRestoringOAuthSession);
-  const profileBadge = getSidebarProfileBadge(user, intl.formatMessage);
-  const avatarFallbackText = getAvatarFallbackText(user);
-  const avatarKey = user?.avatarUrl ?? user?.id ?? "guest";
-  const showAuthRestoreLoading = !user && isRestoringOAuthSession;
-  const usageSummaryState = useWorkspaceSidebarFooterUsageSummaryState({
-    enabled: true,
-    workspaceIdentity,
-    workspacePath,
-  });
+  // 本分支没有账号：这里的触发器只作为「偏好设置」菜单入口，展示产品标识而不是账号身份。
   const profileContent = (
     <>
-      <Avatar key={avatarKey} size="default">
-        {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={profileBadge} /> : null}
-        <AvatarFallback className="bg-background text-foreground">
-          {user ? (
-            avatarFallbackText
-          ) : showAuthRestoreLoading ? (
-            <>
-              {/* OAuth 启动恢复未落定前，footer 之前会直接显示未登录头像，
-                  用户很容易把“还在校验”误判成“已经退出”。
-                  这里用 loading 图标明确表达“状态确认中”，等恢复成功或失败后再展示最终状态。 */}
-              <Loader2 className="size-4 animate-spin" />
-              <span className="sr-only">{intl.formatMessage({ id: "common.loading" })}</span>
-            </>
-          ) : (
-            <User className="size-4" />
-          )}
-        </AvatarFallback>
-      </Avatar>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-background text-foreground">
+        <ZCodeAboutLogo className="h-auto w-4" />
+      </span>
       <div className="min-w-0 flex-1 overflow-hidden text-left">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="min-w-0 truncate text-ui-base font-semibold text-foreground">
-            {profileBadge}
+            Yoyo Code
           </span>
-          {user ? <WorkspaceSidebarFooterPlanBadge state={usageSummaryState} /> : null}
         </div>
       </div>
     </>
@@ -226,7 +202,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
               size={"lg"}
               className="min-w-0 flex-1 justify-start gap-2 overflow-hidden rounded-tl-2xl rounded-bl-2xl border-0 pl-0"
               data-testid={TID_LOGIN_TRIGGER}
-              aria-label={profileBadge}
+              aria-label="Yoyo Code"
             >
               {/* Button 默认 shrink-0 且带 whitespace-nowrap，超长用户名会把 footer 撑出 sidebar。
                 这里让触发按钮和文本列都允许收缩，并只在用户名自身做单行截断。 */}
@@ -341,30 +317,6 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
-            ) : null}
-            {/* 升级入口状态不再以菜单开关为生命周期边界。*/}
-            <WorkspaceSidebarFooterUsageSummaryContent
-              state={usageSummaryState}
-              onUsageClick={usageButtonClick}
-              onUpgradeClick={onUpgradeClick}
-            />
-            {onLogin && !user ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={onLogin} data-testid={TID_LOGIN_MENU_ITEM}>
-                  <LogInIcon className="size-4" />
-                  {intl.formatMessage({ id: "app.login" })}
-                </DropdownMenuItem>
-              </>
-            ) : null}
-            {onLogout ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={onLogout} data-testid={TID_LOGOUT_BUTTON}>
-                  <LogOut className="size-4" />
-                  {intl.formatMessage({ id: "app.logout" })}
-                </DropdownMenuItem>
-              </>
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>

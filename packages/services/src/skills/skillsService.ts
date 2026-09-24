@@ -26,6 +26,11 @@ import type {
   SkillsCapability,
 } from "@zcode/shared";
 import { DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS } from "@zcode/shared";
+import {
+  AGENTS_PROJECT_CONFIG_DIR_NAME,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "@zcode/shared/project-config-dirs";
 import type { ISkillsService } from "./skills.js";
 import { SKILL_FILE_NAME, walkSkillMarkdownPaths } from "./skillDiscoveryWalk.js";
 import { readInstalledPluginRoots } from "#src/plugins/installedPluginRoots.js";
@@ -47,8 +52,8 @@ interface ParsedFrontmatter {
 }
 
 const SKILL_META_FILE_NAME = "_meta.json";
-const SKILL_SETTINGS_DIR = join(resolveUserHomeDir(), ".zcode", "v2");
-const SKILL_CLI_SETTINGS_DIR = join(resolveUserHomeDir(), ".zcode", "cli");
+const SKILL_SETTINGS_DIR = join(resolveUserHomeDir(), ".yoyo-code", "v2");
+const SKILL_CLI_SETTINGS_DIR = join(resolveUserHomeDir(), ".yoyo-code", "cli");
 const SKILL_CLI_CONFIG_FILE = join(SKILL_CLI_SETTINGS_DIR, "config.json");
 const GIT_MARKER = ".git";
 const HOME_PREFIX = "~/";
@@ -71,17 +76,33 @@ interface SkillsServiceOptions {
 
 /** ZCode Agent 工作区级技能目录。 */
 function getWorkspaceZcodeSkillRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "skills");
+  return join(workspacePath, NATIVE_PROJECT_CONFIG_DIR_NAME, "skills");
 }
 
-/** 兼容目录: workspace 级 `.agents/skills`, 仅在同层 `.zcode/skills` 没读到技能时 fallback。 */
+/**
+ * 迁移前的项目级技能目录 `.zcode/skills`。老项目里的技能不能因为目录改名直接消失，
+ * 因此只读兼容；导入、删除与新建仍然只落在 `.yoyo-code/skills`。
+ */
+function getWorkspaceLegacyZcodeSkillRoot(workspacePath: string): string {
+  return join(workspacePath, LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "skills");
+}
+
+/** 兼容目录: workspace 级 `.agents/skills`，与同层 `.yoyo-code/skills` 合并扫描。 */
 function getWorkspaceAgentsSkillRoot(workspacePath: string): string {
-  return join(workspacePath, ".agents", "skills");
+  return join(workspacePath, AGENTS_PROJECT_CONFIG_DIR_NAME, "skills");
 }
 
 /** ZCode Agent 用户级技能目录。 */
 function getUserZcodeSkillRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "skills");
+  return join(resolveUserHomeDir(), ".yoyo-code", "skills");
+}
+
+/**
+ * 迁移前的用户级技能目录 `~/.zcode/skills`。与 `.agents` 一样只读兼容：
+ * 迁移后的同名技能已在 `~/.yoyo-code/skills` 命中时，旧目录不再重复列出。
+ */
+function getUserLegacyZcodeSkillRoot(): string {
+  return join(resolveUserHomeDir(), LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "skills");
 }
 
 /** 兼容目录: 用户级 `~/.agents/skills`。 */
@@ -116,13 +137,15 @@ async function collectSkillNameKeysInRoot(rootPath: string): Promise<Set<string>
   return nameKeys;
 }
 
-async function isUserAgentsSkillCoveredByZcode(params: {
+async function isUserCompatSkillCoveredByZcode(params: {
   skillPath: string;
   rootPath: string;
   userZcodeSkillNameKeys: Set<string>;
 }): Promise<boolean> {
   const { skillPath, rootPath, userZcodeSkillNameKeys } = params;
-  if (rootPath !== getUserAgentsSkillRoot()) {
+  // 只对用户级兼容根（`.agents` / 迁移前的 `.zcode`）做同名遮蔽；
+  // 迁移后用户已把同一技能放进 `~/.yoyo-code/skills`，旧根再列一次就是重复项。
+  if (rootPath !== getUserAgentsSkillRoot() && rootPath !== getUserLegacyZcodeSkillRoot()) {
     return false;
   }
   if (await exists(join(getUserZcodeSkillRoot(), basename(dirname(skillPath)), SKILL_FILE_NAME))) {
@@ -133,7 +156,7 @@ async function isUserAgentsSkillCoveredByZcode(params: {
 
 /**
  * 从 workspacePath 向上走到 worktree 根（含 .git 标记），把每一层的
- * `.zcode/skills` 与 `.agents/skills` 都收集起来。
+ * `.yoyo-code/skills`、`.zcode/skills`（迁移前）与 `.agents/skills` 都收集起来。
  * 对齐 apps/zcode-cli/packages/adapters/src/skills/roots.ts:60-72。
  * 找不到 .git 时退回 workspacePath 自身。
  */
@@ -155,9 +178,10 @@ async function resolveAncestorWorkspaceRoots(workspacePath: string): Promise<str
   const roots: string[] = [];
   for (const dir of baseDirectories) {
     // Agent runtime 会合并扫描两个 workspace skill 根。UI 之前把 `.agents`
-    // 当成 `.zcode` 的 fallback，导致同层 `.zcode` 只要有一个技能，`/`、`$` 和设置页
+    // 当成 `.yoyo-code` 的 fallback，导致同层 `.yoyo-code` 只要有一个技能，`/`、`$` 和设置页
     // 就会整根漏掉 `.agents` 技能，形成“模型可执行但 UI 无法引用”的发现语义分裂。
     roots.push(getWorkspaceZcodeSkillRoot(dir));
+    roots.push(getWorkspaceLegacyZcodeSkillRoot(dir));
     roots.push(getWorkspaceAgentsSkillRoot(dir));
   }
   return roots;
@@ -643,7 +667,7 @@ function readStorageDirFromConfig(config: Record<string, unknown>): string {
   const storage = isObjectRecord(config.storage) ? config.storage : {};
   return typeof storage.dir === "string" && storage.dir.trim().length > 0
     ? storage.dir
-    : "~/.zcode";
+    : "~/.yoyo-code";
 }
 
 function resolveConfigPath(path: string): string {
@@ -851,11 +875,15 @@ async function discoverSkills(params: {
     rootPath,
   }));
   if (params.includeUserSkills) {
-    // 用户级技能是全局资源，`.zcode/skills` 里只要存在一个技能就截断
+    // 用户级技能是全局资源，`.yoyo-code/skills` 里只要存在一个技能就截断
     // `.agents/skills` 会导致外部 Agent 的全局技能在导入后从设置页消失。
     roots.push({
       scope: "user" as const,
       rootPath: getUserZcodeSkillRoot(),
+    });
+    roots.push({
+      scope: "user" as const,
+      rootPath: getUserLegacyZcodeSkillRoot(),
     });
     roots.push({
       scope: "user" as const,
@@ -885,7 +913,7 @@ async function discoverSkills(params: {
     const skillPaths = await collectSkillMarkdownPaths(root.rootPath, diagnostics);
     for (const skillPath of skillPaths) {
       if (
-        await isUserAgentsSkillCoveredByZcode({
+        await isUserCompatSkillCoveredByZcode({
           skillPath,
           rootPath: root.rootPath,
           userZcodeSkillNameKeys,
@@ -1193,7 +1221,7 @@ export function createSkillsService(options?: SkillsServiceOptions): ISkillsServ
 
       // 用发现阶段命中的原始路径（sourcePath，未 realpath）定位技能目录项。
       // 软链导入的技能 skill.path 是 realpath 后的目标文件，dirname 会指向目标目录；
-      // sourcePath 才指向 `~/.zcode/skills/<name>` 下的目录项本身。
+      // sourcePath 才指向 `~/.yoyo-code/skills/<name>` 下的目录项本身。
       const skillDir = dirname(skill.sourcePath ?? skill.path);
       const skillLeafName = basename(skillDir);
       // 只解析父目录，不解析叶子本身：
@@ -1206,9 +1234,11 @@ export function createSkillsService(options?: SkillsServiceOptions): ISkillsServ
       }
 
       // 安全护栏：删除是 `rm -rf` 目录的破坏性操作，仅允许命中受控技能根。
-      // 收集工作区各层级（沿 worktree 向上）的 .zcode/skills 与 .agents/skills，外加用户级两根。
+      // 收集工作区各层级（沿 worktree 向上）的 .yoyo-code/skills、迁移前的 .zcode/skills
+      // 与 .agents/skills，外加用户级两根。
       const allowedRootCandidates = await resolveAncestorWorkspaceRoots(params.workspacePath);
       allowedRootCandidates.push(getUserZcodeSkillRoot());
+      allowedRootCandidates.push(getUserLegacyZcodeSkillRoot());
       allowedRootCandidates.push(getUserAgentsSkillRoot());
 
       // 用 realpath 后的父目录与 realpath 后的根比较：父目录必须落在（或等于）某个受控根内。

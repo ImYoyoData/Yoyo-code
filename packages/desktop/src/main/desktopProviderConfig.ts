@@ -1,7 +1,21 @@
 import { app } from "electron";
 import { join } from "node:path";
+import { logger } from "./logger.js";
 
 export function resolveZCodeBuiltinProviderConfigFilePath(options?: {
+  readonly appPath?: string;
+  readonly env?: Readonly<Record<string, string | undefined>>;
+  readonly isPackaged?: boolean;
+  readonly resourcesPath?: string;
+}): string {
+  const resolved = resolveZCodeBuiltinProviderConfigFilePathInner(options);
+  // Built-in Provider 目录决定模型设置里出现哪些供应商；解析错路径时只能从
+  // 数据目录的物化副本反推，排查成本很高，这里保留一条可追溯的诊断记录。
+  logger.info(`[provider-config] builtin catalog path: ${resolved}`);
+  return resolved;
+}
+
+function resolveZCodeBuiltinProviderConfigFilePathInner(options?: {
   readonly appPath?: string;
   readonly env?: Readonly<Record<string, string | undefined>>;
   readonly isPackaged?: boolean;
@@ -15,7 +29,6 @@ export function resolveZCodeBuiltinProviderConfigFilePath(options?: {
       "config/provider/zcode-builtin.json",
     );
   }
-  // 开发态与打包共用唯一线上配置源。
   const filename = "zcode-builtin.json";
   return join(options?.appPath ?? app.getAppPath(), "../../config/provider", filename);
 }

@@ -73,6 +73,7 @@ export {
   normalizeZCodeProductFlavor,
 } from "./env.js";
 export * from "./errors.js";
+export * from "./project-config-dirs.js";
 export type { SessionCreateSource } from "./sessionCreateSource.js";
 export { resolveSafeEndpointHostname } from "./endpointHostname.js";
 export * from "./rendererActionTrace.js";

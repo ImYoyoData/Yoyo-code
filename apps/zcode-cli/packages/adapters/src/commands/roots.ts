@@ -2,13 +2,16 @@ import { stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { CustomCommandRoot, CustomCommandSource } from "@zcode/contracts";
+import {
+  AGENTS_PROJECT_CONFIG_DIR_NAME,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "@zcode/shared/project-config-dirs";
 
 const COMMANDS_DIR = "commands";
 const GIT_MARKER = ".git";
 const HOME_PREFIX = "~/";
 const PRIORITY_STEP = 10;
-const ZCODE_DIR = ".zcode";
-const AGENTS_DIR = ".agents";
 
 export interface CustomCommandRootResolutionOptions {
   extraRoots?: string[];
@@ -96,11 +99,27 @@ function commandRootsForBase(
   scope: CustomCommandRoot["scope"],
   nextPriority: () => number,
 ): CustomCommandRoot[] {
-  // 合并而不是 fallback：兼容 `.agents` 命令和原生 `.zcode` 命令需要同时可见。
-  // 同一级别 `.zcode` 先扫描，命令同名时仍按“先到先赢”处理。
+  // 合并而不是 fallback：兼容 `.agents` 与迁移前 `.zcode` 的命令，和原生 `.yoyo-code` 需要同时可见。
+  // 同一级别固定 `.yoyo-code` → `.zcode` → `.agents`，命令同名时仍按“先到先赢”处理。
   return [
-    root(join(baseDirectory, ZCODE_DIR, COMMANDS_DIR), scope, "zcode", nextPriority()),
-    root(join(baseDirectory, AGENTS_DIR, COMMANDS_DIR), scope, "agents", nextPriority()),
+    root(
+      join(baseDirectory, NATIVE_PROJECT_CONFIG_DIR_NAME, COMMANDS_DIR),
+      scope,
+      "zcode",
+      nextPriority(),
+    ),
+    root(
+      join(baseDirectory, LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, COMMANDS_DIR),
+      scope,
+      "zcode",
+      nextPriority(),
+    ),
+    root(
+      join(baseDirectory, AGENTS_PROJECT_CONFIG_DIR_NAME, COMMANDS_DIR),
+      scope,
+      "agents",
+      nextPriority(),
+    ),
   ];
 }
 

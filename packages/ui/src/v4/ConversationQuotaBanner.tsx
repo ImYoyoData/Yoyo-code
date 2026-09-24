@@ -110,17 +110,6 @@ export function ConversationQuotaBanner({
           <InfoIcon className="size-4 shrink-0" />
           <div className="min-w-0 break-words">{message}</div>
         </div>
-        {onUpgrade ? (
-          <CodingPlanEntryButton
-            type="button"
-            size="sm"
-            className="h-auto shrink-0 gap-1.5 rounded-full"
-            onClick={onUpgrade}
-          >
-            <RocketIcon className="size-3.5" />
-            {intl.formatMessage({ id: upgradeActionLabelId })}
-          </CodingPlanEntryButton>
-        ) : null}
         {state.dismissible ? (
           <Button
             type="button"

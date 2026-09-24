@@ -8,7 +8,6 @@ export {
   useAssistantCodeCommentFeatureEnabled,
 } from "./AssistantCodeCommentFeatureProvider.js";
 export { Root } from "./Root.js";
-export { UpdateStatusWindowRoot } from "./UpdateStatusWindowRoot.js";
 export { ConfirmDialogHost } from "./ConfirmDialog.js";
 export { Terminal } from "./Terminal.js";
 export { GitGraphPane } from "./git-graph/GitGraphPane.js";
@@ -59,8 +58,6 @@ export {
   useSettings,
   useRecentProjects,
   useConfirmDialog,
-  useCredentials,
-  useAuthToken,
   useGitRepository,
   useGitActions,
 } from "./hooks/index.js";

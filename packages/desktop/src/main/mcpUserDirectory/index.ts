@@ -15,6 +15,11 @@ import type {
   NativeMcpServerRecord,
   SaveCliMcpToUserDirectoryRequest,
 } from "@zcode/shared";
+import {
+  AGENTS_PROJECT_CONFIG_DIR_NAME,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "@zcode/shared/project-config-dirs";
 import type { McpConfigKeyName } from "./types.js";
 import { isRecord, readJsonObject, writeTextAtomic } from "./utils.js";
 import { migrateLegacyCommonMcp } from "./legacy.js";
@@ -37,12 +42,20 @@ interface DirectoryMcpDescriptor {
 const ZCODE_MCP_DESCRIPTOR: DirectoryMcpDescriptor = {
   source: "zcodeagentmcp",
   directorySource: "zcode",
-  userConfigDirSegments: [".zcode", "cli"],
-  workspaceConfigDirSegments: [".zcode"],
+  userConfigDirSegments: [NATIVE_PROJECT_CONFIG_DIR_NAME, "cli"],
+  workspaceConfigDirSegments: [NATIVE_PROJECT_CONFIG_DIR_NAME],
   fileName: "config.json",
   format: "json",
   configKeyName: "mcp.servers",
 };
+
+/** 迁移前的原生目录：老项目/老用户把 MCP 存在 `.zcode` 下，只读兼容，写入永远落回原生目录。 */
+const LEGACY_ZCODE_MCP_DESCRIPTOR: DirectoryMcpDescriptor = {
+  ...ZCODE_MCP_DESCRIPTOR,
+  userConfigDirSegments: [LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "cli"],
+  workspaceConfigDirSegments: [LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME],
+};
+
 const ENABLED_KEY = "enabled";
 // 历史遗留：桌面端早期把停用状态写成 enable，而 CLI 契约字段（contracts McpServerConfigBase）
 // 一直是 enabled，导致同一条 server 出现两套口径、停用后仍被 agent 拉起。
@@ -52,8 +65,8 @@ const LEGACY_ENABLE_KEY = "enable";
 const AGENTS_MCP_DESCRIPTOR: DirectoryMcpDescriptor = {
   source: "zcodeagentmcp",
   directorySource: "agents",
-  userConfigDirSegments: [".agents"],
-  workspaceConfigDirSegments: [".agents"],
+  userConfigDirSegments: [AGENTS_PROJECT_CONFIG_DIR_NAME],
+  workspaceConfigDirSegments: [AGENTS_PROJECT_CONFIG_DIR_NAME],
   fileName: "mcp.json",
   format: "json",
   configKeyName: "mcpServers",
@@ -340,9 +353,19 @@ async function readDirectoryServersFromPreferredSources(
     scope,
     workspacePath,
   );
-  // `.zcode` 是强优先级来源；只要读到 MCP server，同 scope 的 `.agents` 就不再参与。
+  // `.yoyo-code` 是强优先级来源；只要读到 MCP server，同 scope 的后续目录就不再参与。
   if (zcodeServers.length > 0) {
     return zcodeServers;
+  }
+  // 顺序即优先级：原生 → 迁移前的 `.zcode` → `.agents`。这里是"先命中先返回"，
+  // 兼容旧目录不会造成重复项，只会在新目录为空时把旧配置捞回来。
+  const legacyServers = await readDirectoryServersFromFile(
+    LEGACY_ZCODE_MCP_DESCRIPTOR,
+    scope,
+    workspacePath,
+  );
+  if (legacyServers.length > 0) {
+    return legacyServers;
   }
   return readDirectoryServersFromFile(AGENTS_MCP_DESCRIPTOR, scope, workspacePath);
 }

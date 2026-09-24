@@ -6,6 +6,7 @@ import {
   workspaceHooksConfigSchema,
   type WorkspaceHookSourceInput,
 } from "@zcode/shared/workspace-hook-discovery";
+import { isProjectConfigDirName } from "@zcode/shared/project-config-dirs";
 import { loadFileConfig, type LoadedConfig } from "./file-config.adapter.js";
 
 const CURRENT_DIRECTORY = ".";
@@ -116,7 +117,9 @@ export function summarizeProjectConfigs(files: ProjectConfigFile[]): ProjectConf
 
 function getProjectConfigBaseDir(path: string): string {
   const configDirectory = dirname(path);
-  return basename(configDirectory) === ".zcode" ? dirname(configDirectory) : configDirectory;
+  return isProjectConfigDirName(basename(configDirectory))
+    ? dirname(configDirectory)
+    : configDirectory;
 }
 
 function normalizeProjectConfig(config: RuntimeConfigPatch, baseDir: string): RuntimeConfigPatch {

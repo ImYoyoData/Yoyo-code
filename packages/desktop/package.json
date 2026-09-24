@@ -1,8 +1,8 @@
 {
   "name": "@zcode/desktop",
   "private": true,
-  "description": "ZCode Desktop App",
-  "author": "ZCode",
+  "description": "Yoyo Code Desktop App",
+  "author": "Yoyo Code",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -82,5 +82,5 @@
     "typescript": "^6.0.2",
     "vite": "^8.0.2"
   },
-  "productName": "ZCode"
+  "productName": "Yoyo Code"
 }

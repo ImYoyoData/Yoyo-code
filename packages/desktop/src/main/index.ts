@@ -51,9 +51,6 @@ import {
   createCredentialService,
   createSettingService,
   createTelemetryCore,
-  createTelemetryMarketingParamsLoader,
-  createTelemetryUserIdLoader,
-  createTelemetryAuthorizationLoader,
   buildRuntimeProcessEnvPatch,
   captureLoginShellEnvSnapshot,
   getConversationWorkspaceDir,
@@ -132,7 +129,6 @@ import { applyAppIcon } from "./desktopWindowChrome.js";
 import { resolveWindowsAppUserModelIdForFlavor } from "../../scripts/desktop-product-identity.mjs";
 import type { DesktopWindowSize } from "./desktopWindowSize.js";
 import { maybeWarnArchitectureMismatch } from "./desktopArchitectureGuard.js";
-import { maybeBlockStartupForForceUpdate } from "./forceUpdateGuard.js";
 import { createWindowsDesktopTray, updateWindowsDesktopTrayMenu } from "./desktopTray.js";
 import { createWindowsCuaOperationIndicator } from "./windowsCuaOperationIndicator.js";
 import {
@@ -529,7 +525,7 @@ async function runBrowserCommandOnView(params: {
 let currentDesktopZoomLevel = 0;
 let currentDesktopWindowSize: DesktopWindowSize | undefined;
 const preloadPath = join(import.meta.dirname, "../preload/index.cjs");
-const settingsFile = join(homedir(), ".zcode", "v2", "setting.json");
+const settingsFile = join(homedir(), ".yoyo-code", "v2", "setting.json");
 let activeAppShutdownPolicy = resolveAppShutdownPolicy("normal", process.platform);
 let activeAppShutdownKind: AppShutdownKind | null = null;
 const WINDOWS_AGENT_FORCE_KILL_TIMEOUT_MS = 2_000;
@@ -726,9 +722,8 @@ function awaitFirstHostSpawnDecision(): Promise<void> {
   return firstHostSpawnDecisionPromise;
 }
 const appTelemetryCore = createTelemetryCore({
-  loadUserId: createTelemetryUserIdLoader(appTelemetryCredentialService),
-  loadAuthorization: createTelemetryAuthorizationLoader(appTelemetryCredentialService),
-  loadMarketingParams: createTelemetryMarketingParamsLoader(appTelemetryCredentialService),
+  // 没有账号体系：不注入用户身份 / 授权头 / 渠道归因 loader，
+  // telemetryCore 会按匿名上报（loadUserId 回退空串）。
   resolveZCodeEndpointOrigin: resolveCurrentZCodeEndpointOrigin,
   fetchImpl: createDesktopTelemetryFetch(net),
 });
@@ -857,29 +852,12 @@ let startupOpenWorkspaceRequest: ExplicitStartupWorkspaceRequest | null =
       ? { path: startupDeepLinkWorkspacePath, source: "deep-link" }
       : null;
 
-let forceUpdateMainWindowCreationBlocked = false;
-
 function resolveExternalWorkspaceConfirmationCopy() {
   const effectiveLocale =
     currentApplicationLocale === DEFAULT_LOCALE && app.isReady()
       ? resolveSystemApplicationLocale()
       : currentApplicationLocale;
   return resolveExternalWorkspaceOpenDialogCopy(effectiveLocale);
-}
-
-function focusForceUpdateGateWindow() {
-  const gateWindow = getApplicationWindowsExcludingCuaIndicator()[0];
-  if (!gateWindow) {
-    return;
-  }
-
-  if (gateWindow.isMinimized()) {
-    gateWindow.restore();
-  }
-  if (!gateWindow.isVisible()) {
-    gateWindow.show();
-  }
-  gateWindow.focus();
 }
 
 const primaryWindowCoordinator = createPrimaryWindowCoordinator({
@@ -908,16 +886,7 @@ const primaryWindowCoordinator = createPrimaryWindowCoordinator({
   createWindow: (startupBootstrap) => {
     createWindowInstance(startupBootstrap);
   },
-  canCreateWindow: (reason) => {
-    if (!forceUpdateMainWindowCreationBlocked) {
-      return true;
-    }
-
-    // 强制升级命中后，Dock/托盘/activate/deep link 不能绕过 app-ready gate 创建旧版主界面。
-    logger.warn(`[force-update] 已阻止主窗口创建入口：${reason}`);
-    focusForceUpdateGateWindow();
-    return false;
-  },
+  canCreateWindow: () => true,
   logger,
 });
 
@@ -1794,11 +1763,6 @@ registerDeepLinkProtocol(logger, { iconPath: linuxDesktopIntegrationIconPath });
 app.on("open-url", (event, url) => {
   event.preventDefault();
   const workspacePath = extractOpenWorkspacePathFromDeepLinkUrl(url);
-  if (workspacePath && forceUpdateMainWindowCreationBlocked) {
-    logger.warn("[force-update] 已忽略强制升级期间的 open-url workspace 请求");
-    focusForceUpdateGateWindow();
-    return;
-  }
   if (workspacePath && getApplicationWindowsExcludingCuaIndicator().length === 0) {
     // macOS 冷启动 Finder Service 会先触发 open-url，再创建首窗。
     // 把目标目录按 deep link 来源记录，首窗 bootstrap 前仍要走确认 gate。
@@ -1822,8 +1786,6 @@ app.on("second-instance", (_event, argv, _workingDirectory, additionalData) => {
     handleSecondInstanceWorkspaceRequest({
       additionalData,
       argv,
-      focusForceUpdateGateWindow,
-      forceUpdateBlocked: forceUpdateMainWindowCreationBlocked,
       handleDeepLink: (url, options) => handleDeepLink(url, logger, options),
       handleOpenWorkspacePath: (path, options) =>
         handleOpenWorkspacePath(path, logger, {
@@ -2181,30 +2143,7 @@ app.whenReady().then(async () => {
   // 本地未打包 dev 构建（app.isPackaged === false）必须跳过远端强制升级 gate。
   // 原因：force-update gate 只看 ZCODE_ENV === "production"，但 dev 构建（如 dev:desktop:cua
   // 连真实后端测 computer use）虽指向 production 后端，版本号却滞后于线上 release（feature
-  // 分支不 bump 版本），会被 release minimalVersion 误判为"需强制升级"而启动秒退。force-update
-  // 是面向打包发布客户端的安全门，对未打包 dev 运行时无意义。打包版 app.isPackaged === true，
-  // gate 照常生效，对真实用户零影响。
-  const skipForceUpdateForLocalDevRuntime = !app.isPackaged;
-  const forceUpdateGuardResult =
-    ZCODE_PRODUCT_FLAVOR === "production" && !skipForceUpdateForLocalDevRuntime
-      ? await maybeBlockStartupForForceUpdate({
-          locale: currentApplicationLocale,
-          logger,
-          endpointOrigin: await resolveCurrentZCodeEndpointOrigin(),
-          onBlocked: () => {
-            forceUpdateMainWindowCreationBlocked = true;
-          },
-        })
-      : { blocked: false };
-  if (ZCODE_PRODUCT_FLAVOR !== "production") {
-    logger.info("[force-update] Preview 跳过远端强制升级检查");
-  } else if (skipForceUpdateForLocalDevRuntime) {
-    logger.info("[force-update] 本地 dev 构建（未打包）跳过远端强制升级检查");
-  }
-  if (forceUpdateGuardResult.blocked) {
-    return;
-  }
-
+  // 本分支不提供升级/强制升级界面：启动不再经过远端 force-update 门禁。
   logger.info("[startup] 创建主窗口");
   await primaryWindowCoordinator.ensurePrimaryWindow("app-ready");
 

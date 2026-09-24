@@ -8,9 +8,11 @@ import {
   type LinuxDeepLinkRegistrationLogger,
 } from "./desktopLinuxXdg.js";
 
-const LINUX_DEEP_LINK_DESKTOP_FILE = "zcode.desktop";
-const LINUX_DEEP_LINK_MIME_TYPE = "x-scheme-handler/zcode";
-// 归属标记：用于识别用户级 zcode.desktop 是否由本应用写入（历史所有版本都带这行 Comment）。
+const LINUX_DEEP_LINK_DESKTOP_FILE = "yoyo-code.desktop";
+const LINUX_DEEP_LINK_MIME_TYPE = "x-scheme-handler/yoyo-code";
+// 归属标记：用于识别用户级 desktop 文件是否由本应用写入。
+// 这里刻意保留上游的 Comment 文本：它是历史版本写过的同一行，改了就无法再识别并清理
+// 旧版本遗留的用户级条目。它只用于归属判定，不是展示文案。
 const LINUX_DESKTOP_ENTRY_OWNERSHIP_MARKER = "Comment=ZCode Desktop App";
 
 type LinuxDesktopEnv = {
@@ -61,7 +63,7 @@ function resolveLinuxDeepLinkCommand(params: {
 
   return {
     executablePath: appImagePath,
-    // AppImage 的 zcode:// 回调会由 xdg-open 按 .desktop Exec 二次启动。
+    // AppImage 的 yoyo-code:// 回调会由 xdg-open 按 .desktop Exec 二次启动。
     // 用户手动启动时附加的 sandbox/GPU 参数不会自动继承，二次启动可能在 Electron 初始化前崩溃。
     // 这里只持久化影响启动成败的 allowlist 参数，避免把 deep link URL、调试端口或工作区路径写死。
     args: resolveAppImageDeepLinkArgs(params.argv ?? []),
@@ -109,8 +111,8 @@ function createLinuxDeepLinkDesktopEntry(params: {
   productName?: string;
   iconName?: string;
 }): string {
-  const productName = params.productName ?? "ZCode";
-  const iconName = params.iconName ?? "zcode";
+  const productName = params.productName ?? "Yoyo Code";
+  const iconName = params.iconName ?? "yoyo-code";
   const command = {
     executablePath: params.executablePath,
     args: params.args ?? [],
@@ -188,18 +190,18 @@ function removeOwnedUserDesktopEntry(
     return;
   }
   if (!isOwnedDesktopEntry(desktopFilePath)) {
-    logger.warn("[deep-link] Linux 用户级 zcode.desktop 非本应用写入，保留不清理", {
+    logger.warn("[deep-link] Linux 用户级 yoyo-code.desktop 非本应用写入，保留不清理", {
       desktopFilePath,
     });
     return;
   }
   try {
     rmSync(desktopFilePath);
-    logger.info("[deep-link] 已清理遗留的用户级 zcode.desktop，恢复系统级条目", {
+    logger.info("[deep-link] 已清理遗留的用户级 yoyo-code.desktop，恢复系统级条目", {
       desktopFilePath,
     });
   } catch (error) {
-    logger.warn("[deep-link] 清理遗留用户级 zcode.desktop 失败", { desktopFilePath, error });
+    logger.warn("[deep-link] 清理遗留用户级 yoyo-code.desktop 失败", { desktopFilePath, error });
   }
 }
 
@@ -233,14 +235,14 @@ export function registerLinuxDeepLinkProtocol(options: RegisterLinuxDeepLinkProt
   let protocolRegistered = false;
   const runCommand = options.runCommand ?? runXdgCommand;
 
-  // 用户级 zcode.desktop 在 XDG
+  // 用户级 yoyo-code.desktop 在 XDG
   // 解析中永远优先于系统级同名条目。rpm/deb 安装后，旧 AppImage 写入的用户级条目会把
-  // /usr/share/applications/zcode.desktop 持续遮蔽，快捷方式和 zcode:// deep link 一直
+  // /usr/share/applications/yoyo-code.desktop 持续遮蔽，快捷方式和 yoyo-code:// deep link 一直
   // 指向旧 AppImage（文件还在时）或直接失效（文件被删后），只有手动跑一次新版才会被覆盖。
   // 现在只要检测到系统级同 ID 条目：
   // - 系统安装形态（rpm/deb）运行时：清掉本应用写入的遗留用户级条目，且不再写用户级；
   // - AppImage 运行时：不再写用户级条目和用户级图标，避免旧 AppImage 再度遮蔽系统安装。
-  // 用户手写的自定义 zcode.desktop（无归属标记）不受影响，保留不清理。
+  // 用户手写的自定义 yoyo-code.desktop（无归属标记）不受影响，保留不清理。
   const systemDesktopEntryPath = findSystemLevelDesktopEntryPath(
     options.systemApplicationDirs ?? resolveLinuxSystemApplicationDirs(options.env),
   );

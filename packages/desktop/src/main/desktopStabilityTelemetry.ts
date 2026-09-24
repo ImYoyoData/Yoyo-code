@@ -701,10 +701,11 @@ function mapChildProcessGoneToProcessRoleWithName(
   type: string,
   processName?: string,
 ): StabilityProcessRole {
-  if (processName?.startsWith("zcode-host")) {
+  // 前缀必须与 @zcode/shared 的 ZCODE_PROCESS_PREFIX 保持一致，否则崩溃归因会退化成 fallback 角色。
+  if (processName?.startsWith("yoyo-code-host")) {
     return "host";
   }
-  if (processName?.startsWith("zcode-agent")) {
+  if (processName?.startsWith("yoyo-code-agent")) {
     return "agent";
   }
   switch (type) {

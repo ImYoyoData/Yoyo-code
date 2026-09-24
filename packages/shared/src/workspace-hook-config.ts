@@ -2,6 +2,11 @@ import { existsSync, statSync } from "node:fs";
 import { access, readFile, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { z } from "zod";
+import {
+  isProjectConfigDirName,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "./project-config-dirs.js";
 
 export const WORKSPACE_HOOK_DIGEST_SCHEMA_VERSION = 1 as const;
 export const DEFAULT_WORKSPACE_HOOK_TIMEOUT_MS = 60_000;
@@ -17,7 +22,11 @@ export const WORKSPACE_HOOK_EVENT_NAMES = [
 ] as const;
 
 export type WorkspaceHookEventName = (typeof WORKSPACE_HOOK_EVENT_NAMES)[number];
-export type WorkspaceHookConfigFileKind = "zcode.json" | ".zcode/config.json" | "explicit";
+export type WorkspaceHookConfigFileKind =
+  | "zcode.json"
+  | ".yoyo-code/config.json"
+  | ".zcode/config.json"
+  | "explicit";
 
 const positiveNumberSchema = z.number().finite().positive();
 
@@ -174,7 +183,9 @@ export function resolveWorkspaceHookConfiguredGates(input: {
 function buildWorkspaceHookCandidatePaths(directories: readonly string[]): string[] {
   return directories.flatMap((directory) => [
     join(directory, "zcode.json"),
-    join(directory, ".zcode", "config.json"),
+    join(directory, NATIVE_PROJECT_CONFIG_DIR_NAME, "config.json"),
+    // 迁移前的项目目录仍可能有 hooks / mcp / plugins 等配置，排在同层原生目录之后只做兼容读取。
+    join(directory, LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "config.json"),
   ]);
 }
 
@@ -232,19 +243,34 @@ export function createWorkspaceHookSourceInput(input: {
   const configDirectory = dirname(canonicalPath);
   return {
     canonicalPath,
-    baseDir: basename(configDirectory) === ".zcode" ? dirname(configDirectory) : configDirectory,
+    // 历史 `.zcode/config.json` 同样要回推到项目根，否则 baseDir 会指向配置目录本身。
+    baseDir: isProjectConfigDirName(basename(configDirectory))
+      ? dirname(configDirectory)
+      : configDirectory,
     discoveryOrder: input.discoveryOrder,
-    configFileKind: explicitProjectConfig
-      ? "explicit"
-      : basename(canonicalPath) === "zcode.json"
-        ? "zcode.json"
-        : ".zcode/config.json",
+    configFileKind: resolveWorkspaceHookConfigFileKind(canonicalPath, explicitProjectConfig),
     explicitProjectConfig,
     editable:
       !explicitProjectConfig &&
-      canonicalPath === resolve(input.workingDirectory, ".zcode", "config.json"),
+      canonicalPath ===
+        resolve(input.workingDirectory, NATIVE_PROJECT_CONFIG_DIR_NAME, "config.json"),
     hooks: input.hooks,
   };
+}
+
+function resolveWorkspaceHookConfigFileKind(
+  canonicalPath: string,
+  explicitProjectConfig: boolean,
+): WorkspaceHookConfigFileKind {
+  if (explicitProjectConfig) {
+    return "explicit";
+  }
+  if (basename(canonicalPath) === "zcode.json") {
+    return "zcode.json";
+  }
+  return basename(dirname(canonicalPath)) === LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME
+    ? ".zcode/config.json"
+    : ".yoyo-code/config.json";
 }
 
 export async function readWorkspaceHookProjectSources(input: {

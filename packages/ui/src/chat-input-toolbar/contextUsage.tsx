@@ -984,28 +984,6 @@ export function ChatContextUsage({
               ) : null}
             </>
           ) : null}
-          {codingPlanUsageRemainingWithClose && hasCodingPlanUsageRemaining ? (
-            <ChatCodingPlanUsageRemainingPanel
-              autoCelebrateArm={armedAutoConfetti}
-              config={codingPlanUsageRemainingWithClose}
-              intl={intl}
-              locale={locale}
-              quotaResetDialogOpen={quotaResetDialogOpen}
-              separated={Boolean(renderableTaskUsage && compactTokenUsageLabel)}
-              onAutoCelebrated={handleAutoResetCelebrated}
-              onQuotaResetDialogOpenChange={handleQuotaResetDialogOpenChange}
-            />
-          ) : null}
-          {startPlanBalanceWithClose && hasStartPlanBalance ? (
-            <ChatStartPlanBalancePanel
-              config={startPlanBalanceWithClose}
-              intl={intl}
-              locale={locale}
-              separated={Boolean(
-                (renderableTaskUsage && compactTokenUsageLabel) || hasCodingPlanUsageRemaining,
-              )}
-            />
-          ) : null}
         </ContextContentBody>
       </ContextContent>
     </Context>

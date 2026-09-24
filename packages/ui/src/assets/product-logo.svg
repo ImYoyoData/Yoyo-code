@@ -1,0 +1,17 @@
+<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="yoyo-product-logo" x1="0" y1="0" x2="18" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1" />
+      <stop offset="1" stop-color="#4338CA" />
+    </linearGradient>
+  </defs>
+  <rect width="18" height="18" rx="4.027" fill="url(#yoyo-product-logo)" />
+  <path
+    d="M5.85 4.77 9 8.19 12.15 4.77"
+    stroke="#FFFFFF"
+    stroke-width="2.088"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path d="M9 8.19v4.86" stroke="#FFFFFF" stroke-width="2.088" stroke-linecap="round" />
+</svg>

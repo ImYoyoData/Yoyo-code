@@ -21,6 +21,7 @@ import {
   ZAI_PROVIDER_ID,
 } from "@zcode/shared";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
+import type { ProviderSettingsModelListResult } from "@zcode/services";
 import { Button } from "@/components/ui/button.js";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useModelProviders } from "@/hooks/useModelProviders.js";
@@ -247,7 +248,7 @@ export function ModelProviderSection({
   const { intl, locale } = useZCodeIntl();
   const confirmDialog = useConfirmDialog();
   const platform = usePlatform();
-  const { modelSelectionService, oauthService, credentialService } = useServices();
+  const { modelSelectionService, credentialService } = useServices();
   const {
     modelProviders,
     providerTemplates,
@@ -268,6 +269,7 @@ export function ModelProviderSection({
     saveDisplayOrder,
     reorderableProviderIds,
     testModelConnectivity,
+    listProviderModels,
     providerSettingsView,
   } = useModelProviders({
     workspacePath,
@@ -828,28 +830,8 @@ export function ModelProviderSection({
           providerId,
           providerName,
         });
-        // ZAI/BigModel provider 已恢复为 App 登录镜像。
-        // 这里的 Unlink 必须走 provider logout，退出当前 active provider 并触发另一组 provider 恢复 Connect。
-        const nextProviderFamilyDomain = resolveLogoutProviderFamilyDomain({
-          currentDomain: sharedSettings?.providerFamilyDomain,
-        });
-        await oauthService.logout(providerId);
-        // Coding Plan 官网 webview 使用独立持久 partition，provider Unlink 也属于账号边界。
-        if (typeof platform.executeDesktopCommand === "function") {
-          await platform.executeDesktopCommand(DesktopCommandIds.ClearCodingPlanWebviewStorage);
-        }
-        await updateSharedSettings({
-          providerFamilyDomain: (nextProviderFamilyDomain ?? "") as never,
-          providerFamilyDomainUpdatedAt: Date.now(),
-          providerFamilyDomainMigrated: true,
-        });
-        await refreshCodingPlanPurchaseTokenState({ clearUserWhenLoggedOut: true });
-        await refresh();
-        // 解绑后 batch-preview 的订阅/鉴权态已经失效，套餐卡片内部缓存必须刷新，
-        // 否则按钮会继续沿用解绑前的 purchased 或 authenticated 状态。
-        refreshCodingPlanProducts();
-        // unlink 前的 React 闭包里仍可能保留旧 Start/Coding provider key。
-        // 解绑按钮只等待本地 logout 和 provider 列表刷新；权益 hook 会在新 provider 快照落地后清空旧状态。
+        // 本分支没有账号连接可解绑：套餐 Provider 不来自账号，也不存在登录态需要退出。
+        // 这里不伪造解绑成功，只结束加载态。
       } catch (error) {
         logger.error("[ModelProviderSection] 解绑 Coding Plan provider 失败", {
           presetId,
@@ -863,10 +845,7 @@ export function ModelProviderSection({
       }
     },
     [
-      oauthService,
       platform,
-      updateSharedSettings,
-      sharedSettings?.providerFamilyDomain,
       modelSelectionService,
       refresh,
       refreshCodingPlanEntitlements,
@@ -1033,6 +1012,12 @@ export function ModelProviderSection({
     [testModelConnectivity],
   );
 
+  const handleListProviderModels = useCallback(
+    async (providerId: string): Promise<ProviderSettingsModelListResult> =>
+      listProviderModels(providerId),
+    [listProviderModels],
+  );
+
   // 首屏慢网时之前直接 return null，导致整块模型供应商页空白，
   // 已有的左侧分组 loading 和刷新按钮 loading 都没有机会渲染。
   // 这里改为始终先渲染布局壳子，再按分组展示 loading，避免用户误以为页面坏了。
@@ -1132,6 +1117,7 @@ export function ModelProviderSection({
           // Provider 的 Effective 模型无法写入 Personal modelOrder。模型调序独立于成员来源。
           onReorderProviderModels={reorderProviderModels}
           onTestModel={handleTestModel}
+          onListProviderModels={handleListProviderModels}
           onCodingPlanLogin={handleCodingPlanLogin}
           onRetryCodingPlan={() => {
             // 取 Key 失败不等于登录失效；沿用 Host 手动刷新，不清除 OAuth 或重新登录。

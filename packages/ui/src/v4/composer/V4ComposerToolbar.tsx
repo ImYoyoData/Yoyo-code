@@ -445,25 +445,6 @@ function V4ComposerModelControlsImpl({
     return resolveDraftDisplayedConfig(draftConfig ?? {});
   }, [draftConfig]);
 
-  const handleOpenStartPlanUpgrade = useCallback(
-    (providerId: string) => {
-      openCodingPlanUpgrade({
-        providerId,
-        funnelContext: createCodingPlanFunnelContext({
-          providerId,
-          upgradeSource: "session_token_usage",
-          eventRegion: "app.session",
-          eventText: intl.formatMessage({ id: "chat.quota.action.upgrade" }),
-          entryPlanState: resolveCodingPlanEntryPlanState({
-            providerId,
-            displayStatus: "purchased",
-            planLevel: "start",
-          }),
-        }),
-      });
-    },
-    [intl, openCodingPlanUpgrade],
-  );
   const handleOpenUsageDetails = useCallback(
     (sourceId?: SidebarUsageCodingPlanSourceId) => {
       if (sourceId) {
@@ -515,7 +496,6 @@ function V4ComposerModelControlsImpl({
             onAccess: () => refreshCodingPlanEntitlements({ silent: true, reason: "access" }),
           }
         : {}),
-      onUpgradeClick: () => handleOpenStartPlanUpgrade(contextPlanConnection.providerId),
       snapshot:
         entitlement?.snapshot?.provider?.id === contextPlanConnection.providerId
           ? entitlement.snapshot
@@ -525,7 +505,6 @@ function V4ComposerModelControlsImpl({
     contextPlanConnection,
     enabledStartPlanProviderIds,
     entitlements,
-    handleOpenStartPlanUpgrade,
     providerSourcesLoading,
     refreshCodingPlanEntitlements,
   ]);

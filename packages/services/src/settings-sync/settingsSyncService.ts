@@ -422,35 +422,35 @@ function resolveUserHomeDir(): string {
 }
 
 function getWorkspaceZcodeSkillRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "skills");
+  return join(workspacePath, ".yoyo-code", "skills");
 }
 
 function getUserZcodeSkillRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "skills");
+  return join(resolveUserHomeDir(), ".yoyo-code", "skills");
 }
 
 function getWorkspaceZcodeCommandRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "commands");
+  return join(workspacePath, ".yoyo-code", "commands");
 }
 
 function getUserZcodeCommandRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "commands");
+  return join(resolveUserHomeDir(), ".yoyo-code", "commands");
 }
 
 function getWorkspaceZcodePluginRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "plugins");
+  return join(workspacePath, ".yoyo-code", "plugins");
 }
 
 function getUserZcodePluginRoot(): string {
-  return join(resolveUserHomeDir(), ".zcode", "plugins");
+  return join(resolveUserHomeDir(), ".yoyo-code", "plugins");
 }
 
 function getUserZcodeCliConfigPath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "cli", "config.json");
+  return join(resolveUserHomeDir(), ".yoyo-code", "cli", "config.json");
 }
 
 function getWorkspaceZcodeConfigPath(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "config.json");
+  return join(workspacePath, ".yoyo-code", "config.json");
 }
 
 function getClaudeUserAgentsFileSourcePath(): string {
@@ -458,7 +458,7 @@ function getClaudeUserAgentsFileSourcePath(): string {
 }
 
 function getUserZcodeAgentsFilePath(): string {
-  return join(resolveUserHomeDir(), ".zcode", "AGENTS.md");
+  return join(resolveUserHomeDir(), ".yoyo-code", "AGENTS.md");
 }
 
 function resolveTargetRootForScope(

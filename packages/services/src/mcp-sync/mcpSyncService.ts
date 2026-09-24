@@ -19,6 +19,11 @@ import type {
   SettingsDirectorySource,
 } from "@zcode/shared";
 import type { IMcpSyncService } from "./mcpSync.js";
+import {
+  AGENTS_PROJECT_CONFIG_DIR_NAME,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "@zcode/shared/project-config-dirs";
 import { checkRemoteSyncDirectoryWriteAccess } from "../remote-sync/remoteSyncWriteAccess.js";
 
 type McpConfigKeyName = "mcp.servers" | "mcpServers";
@@ -43,17 +48,24 @@ interface UserMcpRecord {
 const ZCODE_MCP_DESCRIPTOR: DirectoryMcpDescriptor = {
   source: "zcode",
   directorySource: "zcode",
-  userConfigDirSegments: [".zcode", "cli"],
-  workspaceConfigDirSegments: [".zcode"],
+  userConfigDirSegments: [NATIVE_PROJECT_CONFIG_DIR_NAME, "cli"],
+  workspaceConfigDirSegments: [NATIVE_PROJECT_CONFIG_DIR_NAME],
   fileName: "config.json",
   configKeyName: "mcp.servers",
+};
+
+/** 迁移前的原生目录：老项目/老用户把 MCP 存在 `.zcode` 下，只读兼容，写入永远落回原生目录。 */
+const LEGACY_ZCODE_MCP_DESCRIPTOR: DirectoryMcpDescriptor = {
+  ...ZCODE_MCP_DESCRIPTOR,
+  userConfigDirSegments: [LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, "cli"],
+  workspaceConfigDirSegments: [LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME],
 };
 
 const AGENTS_MCP_DESCRIPTOR: DirectoryMcpDescriptor = {
   source: "agents",
   directorySource: "agents",
-  userConfigDirSegments: [".agents"],
-  workspaceConfigDirSegments: [".agents"],
+  userConfigDirSegments: [AGENTS_PROJECT_CONFIG_DIR_NAME],
+  workspaceConfigDirSegments: [AGENTS_PROJECT_CONFIG_DIR_NAME],
   fileName: "mcp.json",
   configKeyName: "mcpServers",
 };
@@ -285,6 +297,16 @@ async function readDirectoryServersFromPreferredSources(
   );
   if (zcodeServers.length > 0) {
     return zcodeServers;
+  }
+  // 顺序即优先级：原生 → 迁移前的 `.zcode` → `.agents`。这里是"先命中先返回"，
+  // 兼容旧目录不会造成重复项，只会在新目录为空时把旧配置捞回来。
+  const legacyServers = await readDirectoryServersFromFile(
+    LEGACY_ZCODE_MCP_DESCRIPTOR,
+    scope,
+    workspacePath,
+  );
+  if (legacyServers.length > 0) {
+    return legacyServers;
   }
   return readDirectoryServersFromFile(AGENTS_MCP_DESCRIPTOR, scope, workspacePath);
 }

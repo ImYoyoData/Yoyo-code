@@ -1,6 +1,8 @@
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
+import { projectConfigDirCandidates } from "@zcode/shared/project-config-dirs";
 
 const HOME_PREFIX = "~/";
 
@@ -21,7 +23,9 @@ export async function resolveUserSubagentRoot(options?: SubagentStorageOptions):
 }
 
 export function resolveWorkspaceSubagentRoot(workspacePath: string): string {
-  return join(workspacePath, ".zcode", "agents");
+  // 项目里已经有迁移前的 `.zcode/agents` 就继续沿用同一份定义，避免新旧两处各写一半。
+  const candidates = projectConfigDirCandidates(workspacePath, "agents");
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
 }
 
 export async function resolveSubagentStateFile(options?: SubagentStorageOptions): Promise<string> {
@@ -34,7 +38,7 @@ export async function resolveZCodeStorageRoot(options?: SubagentStorageOptions):
   const storageDir =
     typeof storage.dir === "string" && storage.dir.trim().length > 0
       ? storage.dir.trim()
-      : "~/.zcode";
+      : "~/.yoyo-code";
   return resolveConfigPath(storageDir, options);
 }
 
@@ -50,7 +54,7 @@ async function readUserCliConfig(
 ): Promise<Record<string, unknown>> {
   try {
     const raw = await readFile(
-      join(resolveUserHomeDir(options), ".zcode", "cli", "config.json"),
+      join(resolveUserHomeDir(options), ".yoyo-code", "cli", "config.json"),
       "utf8",
     );
     const parsed = JSON.parse(raw) as unknown;

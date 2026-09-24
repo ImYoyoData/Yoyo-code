@@ -6,6 +6,9 @@ export {
   IProviderSettingsService,
   type ModelSelectionView,
   type ModelSelectionViewInput,
+  type ProviderSettingsModelListError,
+  type ProviderSettingsModelListRequest,
+  type ProviderSettingsModelListResult,
   type ProviderSettingsProviderView,
   type ProviderSettingsView,
 } from "./model-provider/providerFacadeServices.js";
@@ -211,9 +214,6 @@ export type { SessionRealtimePort } from "./session/sessionRealtimePort.js";
 
 // FileWatcher service — IFileWatcherService is both a type (interface) and value (descriptor)
 export { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
-
-// OAuth service — IOAuthService is both a type (interface) and value (descriptor)
-export { IOAuthService } from "./oauth/oauth.js";
 
 // UsageStats service — IUsageStatsService is both a type (interface) and value (descriptor)
 export { IUsageStatsService } from "./usage-stats/usageStats.js";

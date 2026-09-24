@@ -12,18 +12,14 @@ import { Emitter } from "@zcode/rpc";
 import { arch, platform, release, type as osType } from "node:os";
 
 import type { ICredentialService } from "../credential/credential.js";
-import type { IOAuthService } from "../oauth/oauth.js";
 import type { FeedbackUploadProgress, IFeedbackService } from "./feedback.js";
 import { FeedbackHttpClient, FeedbackUploadCanceledError } from "./feedbackHttpClient.js";
 import { cleanupLogArchive, prepareCompactLogArchive } from "./compactLogArchive.js";
 import { getFeedbackAttachmentDir } from "../paths.js";
 import { FeedbackLocalTicketStore } from "#src/feedback/feedbackLocalTicketStore.js";
 
-const ZCODE_JWT_TOKEN_KEY = "zcodejwttoken";
-
 export interface CreateFeedbackServiceOptions {
   credentialService: ICredentialService;
-  oauthService: IOAuthService;
   apiClient: ApiClient;
   getDeviceMid?: () => string | undefined;
   apiBaseUrl?: string;
@@ -73,14 +69,6 @@ export function createFeedbackService(options: CreateFeedbackServiceOptions): IF
     return deviceMid;
   }
 
-  async function getZcodeJwtToken(): Promise<string | undefined> {
-    return (await options.credentialService.load(ZCODE_JWT_TOKEN_KEY))?.trim() || undefined;
-  }
-
-  async function hasZcodeJwtToken(): Promise<boolean> {
-    return Boolean(await getZcodeJwtToken());
-  }
-
   const httpClient = new FeedbackHttpClient({
     baseUrl: apiBaseUrl,
     apiClient: options.apiClient,
@@ -92,10 +80,7 @@ export function createFeedbackService(options: CreateFeedbackServiceOptions): IF
       if (deviceMid) {
         headers["X-Device-Mid"] = deviceMid;
       }
-      const jwtToken = await getZcodeJwtToken();
-      if (jwtToken) {
-        headers.Authorization = `Bearer ${jwtToken}`;
-      }
+      // 本分支没有账号体系，不存在 ZCode JWT，因此不再附加 Authorization。
       return headers;
     },
   });
@@ -138,9 +123,8 @@ export function createFeedbackService(options: CreateFeedbackServiceOptions): IF
             signal: controller.signal,
           },
         );
-        if (!(await hasZcodeJwtToken())) {
-          await localTicketStore.upsert(requireHostDeviceMid(), ticket);
-        }
+        // 没有账号体系，反馈工单只存本地，不落服务端账号侧列表。
+        await localTicketStore.upsert(requireHostDeviceMid(), ticket);
         return ticket;
       } finally {
         if (operationId && activeCreateControllers.get(operationId) === controller) {
@@ -154,9 +138,6 @@ export function createFeedbackService(options: CreateFeedbackServiceOptions): IF
       activeCreateControllers.get(key)?.abort();
     },
     list: async (query) => {
-      if (await hasZcodeJwtToken()) {
-        return httpClient.list(query);
-      }
       const items = await localTicketStore.list(requireHostDeviceMid(), query);
       return { items, total: items.length };
     },

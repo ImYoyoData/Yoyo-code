@@ -178,38 +178,10 @@ export function useModelProviderNavigation({
   );
 
   const navigationGroups = useMemo<ModelProviderNavGroup[]>(() => {
-    const groups: ModelProviderNavGroup[] = [
-      {
-        id: "preset",
-        title: intl.formatMessage({ id: "settings.modelProvider.presetTitle" }),
-        items: [
-          ...presetProviders.map(({ id, displayName, provider }) => {
-            const statusProvider = resolvePresetFamilyStatusProvider({
-              presetId: id,
-              provider,
-              connectionModeItems: connectionModeCodingPlanItems,
-              connectionSelections,
-              modelProviders,
-            });
-            return {
-              key: createPresetProviderNodeKey(id),
-              type: "preset" as const,
-              presetId: id,
-              label: displayName,
-              logo: modelProviders.find(
-                (candidate) =>
-                  candidate.providerId ===
-                  resolveModelProviderFamilySpecByProviderId(id)?.individualCodingPlanProviderId,
-              )?.config.logo,
-              provider,
-              displayName,
-              statusProvider,
-              statusActive: statusProvider?.executable === true,
-            };
-          }),
-          ...codingPlanItems.filter((item) => isStartPlanModelProviderId(item.presetId)),
-        ],
-      },
+    // 本分支没有账号体系：账号预设（Z.ai / BigModel 家族）与套餐 Provider 都不存在，
+    // 模型设置只呈现用户自己配置的自定义 Provider（API Key / 自定义 Base URL）。
+    // 账号家族与套餐的导航项来自 MODEL_PROVIDER_FAMILY_SPECS，不再参与列表组装。
+    return [
       {
         id: "custom",
         title: intl.formatMessage({ id: "settings.modelProvider.customTitle" }),
@@ -222,20 +194,7 @@ export function useModelProviderNavigation({
         })),
       },
     ];
-
-    return groups;
-  }, [
-    customProviders,
-    codingPlanItems,
-    connectionModeCodingPlanItems,
-    // 左侧导航分组标题在这个 memo 内格式化。
-    // 语言切换时 provider/权益引用可能不变，必须依赖 intl 才能刷新旧 locale 的文案。
-    intl,
-    connectionSelections,
-    pendingConnectionSelections,
-    presetProviders,
-    modelProviders,
-  ]);
+  }, [customProviders, intl]);
 
   const navigationItems = useMemo(() => {
     const visibleItems = navigationGroups.flatMap((group) => group.items);

@@ -114,6 +114,20 @@ export function ModelProviderLoadingCard({ loadingLabel }: { loadingLabel: strin
   );
 }
 
+/**
+ * 加载已完成但一个 Provider 都没有时的空态。
+ * 这种情况以前复用加载卡片，空列表看起来像永久卡在“加载中”。
+ */
+export function ModelProviderEmptyCard({ emptyLabel }: { emptyLabel: string }) {
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
+      <div className="flex items-center gap-2 text-ui-base text-foreground-subtle">
+        <span>{emptyLabel}</span>
+      </div>
+    </div>
+  );
+}
+
 export function PresetProviderPlaceholderCard({
   displayName,
   messageId = "settings.modelProvider.presetEmpty",

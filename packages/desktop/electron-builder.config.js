@@ -164,7 +164,7 @@ const PACMAN_RUNTIME_DEPENDENCIES = [
   "xdg-utils",
 ];
 
-const WINDOWS_INSTALL_MANIFEST_NAME = ".zcode-install-manifest";
+const WINDOWS_INSTALL_MANIFEST_NAME = ".yoyo-code-install-manifest";
 
 async function writeWindowsInstallManifest(context) {
   if (context.electronPlatformName !== "win32") return;
@@ -214,7 +214,7 @@ if (
   !macSigningIdentity
 ) {
   throw new Error(
-    "ZCode Preview macOS packaging requires APPLE_SIGNING_IDENTITY or CSC_NAME when ZCODE_ENABLE_MAC_SIGN=1",
+    "Yoyo Code Preview macOS packaging requires APPLE_SIGNING_IDENTITY or CSC_NAME when ZCODE_ENABLE_MAC_SIGN=1",
   );
 }
 
@@ -278,7 +278,7 @@ async function runTimedAsync(label, fn) {
 
 function resolveAppAsarPath(context) {
   if (context.electronPlatformName === "darwin") {
-    const appName = `${context.packager?.appInfo?.productFilename ?? "ZCode"}.app`;
+    const appName = `${context.packager?.appInfo?.productFilename ?? "Yoyo Code"}.app`;
     return resolve(context.appOutDir, appName, "Contents", "Resources", "app.asar");
   }
 
@@ -287,7 +287,7 @@ function resolveAppAsarPath(context) {
 
 function resolvePackagedResourcesDir(context) {
   if (context.electronPlatformName === "darwin") {
-    const appName = `${context.packager?.appInfo?.productFilename ?? "ZCode"}.app`;
+    const appName = `${context.packager?.appInfo?.productFilename ?? "Yoyo Code"}.app`;
     return resolve(context.appOutDir, appName, "Contents", "Resources");
   }
 
@@ -453,13 +453,15 @@ export default {
   appId: desktopProductIdentity.appId,
   // Linux deb 打包（fpm）会校验 package metadata 中的 homepage、author.email、maintainer。
   // CI 环境下若这些字段缺失会在产物阶段直接失败。这里统一在构建配置补齐，避免依赖外部注入。
+  // 注意：fork 尚未发布自己的站点，这里用 RFC 2606 保留的 .example 域名占位，
+  // 既不会误挂上游地址，也满足 fpm 的字段校验。发布前替换成真实地址。
   extraMetadata: {
     version: buildMetadata.appVersion,
     zcodeProductFlavor: desktopProductIdentity.flavor,
-    homepage: "https://zcode.z.ai",
+    homepage: "https://yoyo-code.example",
     author: {
-      name: "ZCode",
-      email: "dev@zcode.z.ai",
+      name: "Yoyo Code",
+      email: "dev@yoyo-code.example",
     },
   },
   // macOS 签名阶段会对 Electron Framework 下每个语言包逐个 codesign。
@@ -649,9 +651,9 @@ export default {
   protocols: [
     {
       // 协议处理器的展示名之前使用小写 scheme，打包产物里的协议描述无法体现产品名。
-      // 展示名跟随安装包身份；scheme 仍保持 zcode，因此两个应用中最后注册者会成为默认 handler。
+      // 展示名跟随安装包身份；scheme 用 yoyo-code，与上游 zcode:// 互不抢占。
       name: desktopProductIdentity.productName,
-      schemes: ["zcode"],
+      schemes: ["yoyo-code"],
     },
   ],
   mac: {
@@ -696,11 +698,11 @@ export default {
     artifactName: buildDesktopArtifactName("linux"),
     // desktop 包名是 scoped package（@zcode/desktop），electron-builder 默认会把
     // Linux executable/Icon 推成 @zcodedesktop。部分桌面环境无法按这个 icon name 命中
-    // hicolor 图标，最终回退成系统齿轮。这里固定成稳定的小写名称，让 Icon=zcode
-    // 与 /usr/share/icons/hicolor/*/apps/zcode.png 保持一致。
+    // hicolor 图标，最终回退成系统齿轮。这里固定成稳定的小写名称，让 Icon=yoyo-code
+    // 与 /usr/share/icons/hicolor/*/apps/yoyo-code.png 保持一致。
     executableName: desktopProductIdentity.linuxExecutableName,
     category: "Development",
-    maintainer: "ZCode <dev@zcode.z.ai>",
+    maintainer: "Yoyo Code <dev@yoyo-code.example>",
   },
   deb: {
     // 生产版与 Preview 必须是两个 dpkg package；只改可执行名仍会让安装器把另一版本当成升级替换。

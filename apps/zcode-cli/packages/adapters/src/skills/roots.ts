@@ -2,13 +2,16 @@ import { stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { SkillRoot, SkillSource } from "@zcode/contracts";
+import {
+  AGENTS_PROJECT_CONFIG_DIR_NAME,
+  LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME,
+  NATIVE_PROJECT_CONFIG_DIR_NAME,
+} from "@zcode/shared/project-config-dirs";
 
 const GIT_MARKER = ".git";
 const HOME_PREFIX = "~/";
 const PRIORITY_STEP = 10;
 const SKILLS_DIR = "skills";
-const ZCODE_DIR = ".zcode";
-const AGENTS_DIR = ".agents";
 
 export interface SkillRootResolutionOptions {
   homeDirectory?: string;
@@ -49,6 +52,7 @@ export async function resolveDefaultSkillRoots(
   const projectDirectories = await resolveProjectSkillDirectories(resolvedWorkingDirectory);
   for (const directory of projectDirectories) {
     if (includeZcode) {
+      // 项目级与用户级都识别迁移前的 `.zcode/skills`：目录改名不能让已有技能直接消失。
       roots.push(...skillRootsForBase(directory, "project", nextPriority));
     }
   }
@@ -96,11 +100,27 @@ function skillRootsForBase(
   scope: SkillRoot["scope"],
   nextPriority: () => number,
 ): SkillRoot[] {
-  // 合并而不是 fallback：用户可能同时安装原生 `.zcode` skill 和兼容 `.agents` skill。
-  // 同一级别仍保持 `.zcode` 优先，后续同名按 root 顺序解析。
+  // 合并而不是 fallback：用户可能同时安装原生、迁移前的 `.zcode` 与兼容 `.agents` skill。
+  // 同一级别固定 `.yoyo-code` → `.zcode` → `.agents`，同名按 root 顺序解析。
   return [
-    root(join(baseDirectory, ZCODE_DIR, SKILLS_DIR), scope, "zcode", nextPriority()),
-    root(join(baseDirectory, AGENTS_DIR, SKILLS_DIR), scope, "agents", nextPriority()),
+    root(
+      join(baseDirectory, NATIVE_PROJECT_CONFIG_DIR_NAME, SKILLS_DIR),
+      scope,
+      "zcode",
+      nextPriority(),
+    ),
+    root(
+      join(baseDirectory, LEGACY_NATIVE_PROJECT_CONFIG_DIR_NAME, SKILLS_DIR),
+      scope,
+      "zcode",
+      nextPriority(),
+    ),
+    root(
+      join(baseDirectory, AGENTS_PROJECT_CONFIG_DIR_NAME, SKILLS_DIR),
+      scope,
+      "agents",
+      nextPriority(),
+    ),
   ];
 }
 

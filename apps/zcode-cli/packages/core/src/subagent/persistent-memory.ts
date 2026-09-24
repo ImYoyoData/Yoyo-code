@@ -1,6 +1,8 @@
+import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import type { FileSystemPort, Logger, TraceContext } from "@zcode/contracts";
+import { projectConfigDirCandidates } from "@zcode/shared/project-config-dirs";
 
 import { ensureMemoryDirectoryExists } from "../memory/directory.js";
 import type { AgentRuntimeConfig, MemoryRuntimeConfig } from "../runtime/types.js";
@@ -25,9 +27,13 @@ function resolvePersistentAgentMemoryRoot(input: {
     return join(input.storageRoot, "agent-memory", agentKey);
   }
   const workspace = resolve(input.workspaceRoot);
-  return input.scope === "project"
-    ? join(workspace, ".zcode", "agent-memory", agentKey)
-    : join(workspace, ".zcode", "agent-memory-local", agentKey);
+  const segments =
+    input.scope === "project"
+      ? (["agent-memory", agentKey] as const)
+      : (["agent-memory-local", agentKey] as const);
+  // 项目里已经有迁移前的 `.zcode/agent-memory*` 就继续沿用同一份记忆，避免新旧两处各写一半。
+  const candidates = projectConfigDirCandidates(workspace, ...segments);
+  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!;
 }
 
 function isPersistentAgentMemoryEnabled(

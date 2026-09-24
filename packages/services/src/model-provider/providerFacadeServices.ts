@@ -68,6 +68,14 @@ export interface IProviderSettingsService {
   testModelConnectivity(
     input: ProviderSettingsConnectivityRequest,
   ): Promise<ModelConnectivityResult>;
+  /**
+   * 拉取供应商端点声明的模型目录，供"添加模型"直接选择。
+   * 只读取已经保存的 Provider 配置：Base URL 与 API Key 的凭据解析仍由这里负责，
+   * Renderer 不接触密钥，也不存在"未保存草稿"这条并行写入路径。
+   */
+  listProviderModels(
+    input: ProviderSettingsModelListRequest,
+  ): Promise<ProviderSettingsModelListResult>;
 }
 
 export const IProviderSettingsService = createServiceDescriptor<IProviderSettingsService>(
@@ -92,6 +100,32 @@ export type ProviderSettingsConnectivityTester = (
   input: ProviderSettingsConnectivityTestInput,
 ) => Promise<ModelConnectivityResult>;
 
+export interface ProviderSettingsModelListRequest {
+  readonly providerId: ProviderId;
+}
+
+export interface ProviderSettingsModelListError {
+  /** 已知失败原因由 Renderer 映射成本地化文案；message 只作为兜底细节与日志。 */
+  readonly code: string;
+  readonly message: string;
+}
+
+export type ProviderSettingsModelListResult =
+  | { readonly success: true; readonly modelIds: readonly string[] }
+  | { readonly success: false; readonly error: ProviderSettingsModelListError };
+
+/** 服务层解析出的端点与凭据；拉取器只负责网络与解析，避免各处重复解析配置。 */
+export interface ProviderSettingsModelListTarget {
+  readonly baseUrl: string;
+  readonly apiType: NonNullable<NonNullable<ProviderConfigObject["api"]>["type"]>;
+  readonly apiKey: string;
+  readonly headers?: Readonly<Record<string, string>> | null;
+}
+
+export type ProviderSettingsModelLister = (
+  target: ProviderSettingsModelListTarget,
+) => Promise<ProviderSettingsModelListResult>;
+
 export interface IModelSelectionService {
   readonly onDidChange: Event<ModelSelectionView>;
   getView(input?: ModelSelectionViewInput): Promise<ModelSelectionView>;
@@ -110,6 +144,7 @@ export function createProviderSettingsService(
   facade: ProviderSettingsFacade,
   ensureReady: () => Promise<void> = async () => {},
   testConnectivity?: ProviderSettingsConnectivityTester,
+  listModels?: ProviderSettingsModelLister,
 ): IProviderSettingsService {
   return {
     onDidChange: toEvent((listener) => facade.onDidChange(listener)),
@@ -204,6 +239,44 @@ export function createProviderSettingsService(
         ...(input.workspaceIdentity ? { workspaceIdentity: input.workspaceIdentity } : {}),
         providerId: input.providerId,
         modelId: input.modelId,
+      });
+    },
+    listProviderModels: async (input) => {
+      await ensureReady();
+      if (!listModels) {
+        throw new Error("当前 Environment 未装配模型列表拉取能力");
+      }
+      // 拉取只针对已保存配置，先等该 Provider 的写入落地，避免读到上一代 Base URL。
+      await facade.waitForProviderOperations(input.providerId);
+      const provider = facade
+        .getView()
+        .providers.find((item) => item.providerId === input.providerId);
+      if (!provider) {
+        return {
+          success: false,
+          error: { code: "provider-not-found", message: `Provider 不存在: ${input.providerId}` },
+        };
+      }
+      // account 类 Provider 的密钥在凭据服务里，不在这里解析；只处理 api-key 这一类。
+      const api = provider.effectiveConfig.api;
+      const access = provider.effectiveConfig.access;
+      const apiKey = access?.type === "api-key" ? (access.apiKey ?? "").trim() : "";
+      const baseUrl = (api?.baseUrl ?? "").trim();
+      const apiType = api?.type;
+      if (!apiKey || !baseUrl || !apiType) {
+        return {
+          success: false,
+          error: {
+            code: "provider-credentials-required",
+            message: "该供应商还没有可用的端点或 API Key，请先保存供应商配置。",
+          },
+        };
+      }
+      return listModels({
+        baseUrl,
+        apiType,
+        apiKey,
+        headers: api.headers ?? null,
       });
     },
   };

@@ -14,6 +14,8 @@ const SENSITIVE_MEMORY_PATH_SEGMENTS = new Set([
   "config",
   "objects",
   "refs",
+  ".yoyo-code",
+  // 迁移前的项目配置目录仍被识别，记忆同样不能写进去。
   ".zcode",
   "skills",
   "commands",

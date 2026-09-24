@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { migrateUserSubagentMarkdown, migrateSubagentStateFile } from "@zcode/shared/node";
+import { projectConfigDirCandidates } from "@zcode/shared/project-config-dirs";
 import {
   parseAgentProfileFromMarkdown,
   type AgentProfile,
@@ -51,9 +52,15 @@ export async function loadZCodeAgentProfiles(
 ): Promise<LoadZCodeAgentProfilesResult> {
   const migration = await migrateUserSubagentMarkdown(join(input.storageRoot, "agents"));
   await migrateSubagentStateFile(join(input.storageRoot, "v2", "agents-state.json"));
+  const projectSubagentRoots = projectConfigDirCandidates(input.workingDirectory, "agents");
   const roots = [
     { path: join(input.storageRoot, "agents"), source: "user" as const },
-    { path: join(input.workingDirectory, ".zcode", "agents"), source: "project" as const },
+    // 项目里已经有迁移前的 `.zcode/agents` 就继续沿用，避免新旧两处各写一半。
+    {
+      path:
+        projectSubagentRoots.find((candidate) => existsSync(candidate)) ?? projectSubagentRoots[0]!,
+      source: "project" as const,
+    },
   ];
   const diagnostics: AgentProfileParseDiagnostic[] = [];
   for (const failure of migration.failures) {
@@ -117,7 +124,7 @@ function sanitizeProjectAgentProfile(profile: AgentProfile): AgentProfile {
     return profile;
   }
 
-  // 项目级 .zcode/agents/*.md 是仓库内容，不能通过 frontmatter
+  // 项目级 .yoyo-code/agents/*.md 是仓库内容，不能通过 frontmatter
   // 把 child runtime 切到 bypass/yolo；用户级与受信插件 profile 不受影响。
   const { permissionMode: _permissionMode, ...safeProfile } = profile;
   return safeProfile;
