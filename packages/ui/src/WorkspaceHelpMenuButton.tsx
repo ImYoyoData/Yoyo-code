@@ -56,13 +56,20 @@ export function WorkspaceHelpMenuButton({
             // Settings 页会把帮助按钮绝对定位在 Electron 顶部拖拽区上方。
             // 只依赖外层容器 no-drag 时，真实 trigger 仍可能被标题栏 drag 区吞掉点击。
             className={cn(
-              "text-foreground hover:bg-hover hover:text-foreground [app-region:no-drag]",
+              "relative text-foreground hover:bg-hover hover:text-foreground [app-region:no-drag]",
               className,
             )}
             aria-label={helpMenuLabel}
             data-testid={TID_WORKSPACE_HELP_MENU_TRIGGER}
           >
             <CircleHelpIcon className="size-4" />
+            {/* 发现新版本时在帮助图标上加红点，用户不必先展开菜单才知道有更新。 */}
+            {updateMenu.showUpdateDot ? (
+              <span
+                className="absolute top-1 right-1 size-1.5 rounded-full bg-destructive ring-1 ring-background"
+                aria-hidden="true"
+              />
+            ) : null}
           </Button>
         </DropdownMenuTrigger>
       </ControlHintTooltip>
@@ -93,6 +100,10 @@ export function WorkspaceHelpMenuButton({
             ) : (
               intl.formatMessage({ id: updateMenu.labelId }, updateMenu.labelValues)
             )}
+            {/* 菜单里的更新入口同样带红点，和帮助图标、顶部更新按钮保持一致的"有更新"提示。 */}
+            {updateMenu.showUpdateDot ? (
+              <span className="ml-auto size-1.5 rounded-full bg-destructive" aria-hidden="true" />
+            ) : null}
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={handleShowAbout}>

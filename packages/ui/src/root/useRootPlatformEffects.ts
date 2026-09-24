@@ -18,6 +18,7 @@ import {
   resolveShareImportFailurePresentation,
   type ShareImportIntent,
 } from "@/root/shareImportIntent.js";
+import { resolveDesktopUpdateNotice } from "@/lib/desktopUpdateNotice.js";
 
 export function useRootPlatformEffects({
   initialWorkspaceAbsPath,
@@ -229,45 +230,15 @@ export function useRootPlatformEffects({
     const disposeUpdateCheckResult = platform.onUpdateCheckResult
       ? platform.onUpdateCheckResult((payload) => {
           logger.info("[Root] onUpdateCheckResult:", payload.kind);
-          switch (payload.kind) {
-            case "up-to-date":
-              toast(
-                intl.formatMessage(
-                  { id: "update.toast.upToDate" },
-                  { version: payload.currentVersion },
-                ),
-              );
-              return;
-            case "downloading":
-              toast(
-                intl.formatMessage(
-                  { id: "update.toast.downloading" },
-                  { version: payload.version },
-                ),
-              );
-              return;
-            case "available":
-              toast(
-                intl.formatMessage({ id: "update.toast.available" }, { version: payload.version }),
-              );
-              return;
-            case "already-downloading":
-              toast(
-                intl.formatMessage(
-                  { id: "update.toast.alreadyDownloading" },
-                  { progress: payload.progress },
-                ),
-              );
-              return;
-            case "ready":
-              toast(intl.formatMessage({ id: "update.toast.ready" }, { version: payload.version }));
-              return;
-            case "dev-skipped":
-              toast(intl.formatMessage({ id: "update.toast.devSkipped" }));
-              return;
-            case "error":
-              toast(intl.formatMessage({ id: "update.toast.error" }, { error: payload.message }));
-              return;
+          // 检查结果只做短提示，失败也只说失败：
+          // payload.message 是 electron-updater 抛出的原始文本（HTTP 状态、重定向等），
+          // 之前直接 toast 出来既看不懂也可能带出内部地址，这里只进日志。
+          if (payload.kind === "error") {
+            logger.warn("[Root] 检查更新失败", { message: payload.message });
+          }
+          const notice = resolveDesktopUpdateNotice(payload);
+          if (notice) {
+            toast(intl.formatMessage({ id: notice.id }, notice.values));
           }
         })
       : () => {};

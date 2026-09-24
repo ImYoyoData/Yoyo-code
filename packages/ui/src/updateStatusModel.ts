@@ -6,6 +6,20 @@ import type {
 
 export type UpdateStatusDialogPhase = "before-download" | "downloading" | "downloaded";
 
+/**
+ * 是否存在用户需要处理的更新：发现新版本、下载中、已下载完成。
+ * 顶部更新入口与帮助菜单里的更新红点都走这里判断，避免各处重复比较 state.kind。
+ */
+export function hasPendingUpdate({
+  legacyReadyVersion,
+  updateState,
+}: {
+  legacyReadyVersion: string | null;
+  updateState: UpdateStatePayload | null;
+}): boolean {
+  return deriveUpdateStatusViewModel({ legacyReadyVersion, updateState }).displayVersion !== null;
+}
+
 export type UpdateActionInFlight = "download" | "cancel" | "skip" | "restart" | null;
 
 export type UpdateStatusViewModel = {

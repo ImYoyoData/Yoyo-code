@@ -1233,6 +1233,8 @@ const enUS: Record<string, string> = {
   "updateReady.confirm.ok": "Restart & update now",
   "updateReady.confirm.cancel": "Later",
   "updateDialog.availableTitle": "New version v{version}",
+  "updateDialog.availableDescription":
+    "Download the update – only the diff against your current version is fetched – then restart to upgrade.",
   "updateDialog.downloadingTitle": "Downloading v{version}",
   "updateDialog.readyTitle": "v{version} is ready",
   "updateDialog.releaseDate": "{date}",
@@ -1252,7 +1254,7 @@ const enUS: Record<string, string> = {
   "update.toast.alreadyDownloading": "Downloading new version ({progress}%)",
   "update.toast.ready": "v{version} downloaded, restart to install",
   "update.toast.devSkipped": "Updates are disabled in dev builds",
-  "update.toast.error": "Update check failed: {error}",
+  "update.toast.failed": "Update check failed. Please try again later.",
   "forceUpdate.title": "Update Yoyo Code to continue",
   "forceUpdate.description":
     "Your current version v{currentVersion} is below the minimum supported version v{minimalVersion}. Update first before continuing with this client.",

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { DesktopTopOverlayActionButton } from "@/DesktopTopOverlayActionButton.js";
+import { UpdateStatusButton } from "@/UpdateStatusButton.js";
 import {
   createWindowsCaptionControlsStyle,
   WINDOWS_CAPTION_CONTROLS_RIGHT_INSET_VAR,
@@ -201,6 +202,18 @@ export function DesktopTopOverlay({
               <MessageCirclePlus className="size-4" />
             </DesktopTopOverlayActionButton>
           </div>
+
+          {/*
+            更新入口只在发现新版本/下载中/已下载时渲染，所以它出现本身就表示"有更新要处理"，
+            角上的红点与帮助菜单的红点语义一致。
+          */}
+          <UpdateStatusButton
+            platform={platform}
+            version={updateReadyVersion}
+            updateState={updateState}
+            isMacDesktop={Boolean(isMacDesktop)}
+            isWindowsDesktop={Boolean(isWindowsDesktop)}
+          />
         </div>
       </div>
     </div>

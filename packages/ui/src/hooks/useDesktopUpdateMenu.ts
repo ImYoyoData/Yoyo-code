@@ -7,6 +7,7 @@ import {
   shouldShowDesktopUpdateEntry,
 } from "@/lib/desktopUpdateMenu.js";
 import { logger } from "@/logger.js";
+import { hasPendingUpdate } from "@/updateStatusModel.js";
 
 export function useDesktopUpdateMenu(isDesktop: boolean) {
   const platform = usePlatform();
@@ -37,6 +38,8 @@ export function useDesktopUpdateMenu(isDesktop: boolean) {
   return {
     visible,
     disabled: state?.enabled === false,
+    // 帮助图标与菜单里的红点：只在真的有更新要处理时出现（发现新版本 / 下载中 / 已下载待重启）。
+    showUpdateDot: hasPendingUpdate({ legacyReadyVersion: null, updateState: state }),
     labelId: getUpdateMenuLabelId(state),
     labelValues: getUpdateMenuLabelValues(state),
     checkForUpdates: () => {
