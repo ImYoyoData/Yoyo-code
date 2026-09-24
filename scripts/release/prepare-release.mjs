@@ -103,7 +103,14 @@ function main() {
   }
 
   const bump = options.bump ?? decideBump(commits) ?? "patch";
-  const version = options.version ?? bumpVersion(currentVersion, bump);
+  const version = resolveNextVersion({
+    currentVersion,
+    previousTag,
+    requestedVersion: options.version,
+    requestedBump: options.bump,
+    commits,
+    fallbackBump: bump,
+  });
   const tag = `v${version}`;
   const compareUrl = buildCompareUrl(previousTag, tag);
   const notesArgs = { version, date: options.date, commits, compareUrl };
@@ -120,7 +127,7 @@ function main() {
     : "";
   writeFileSync(
     CHANGELOG_PATH,
-    prependChangelog(existingChangelog, renderChangelogEntry(notesArgs)),
+    prependChangelog(existingChangelog, renderChangelogEntry(notesArgs), version),
     "utf8",
   );
   writeFileSync(options.notesOut, renderBilingualNotes(notesArgs), "utf8");
@@ -135,6 +142,41 @@ function main() {
     previous_tag: previousTag ?? "",
     notes_file: options.notesOut,
   });
+}
+
+/**
+ * 决定本次发布的版本号。
+ *
+ * 版本号可能已经在 dev 上手工推进过（例如把发布链路和新功能一起提上去）。这时直接用当前版本发布，
+ * 而不是在它之上再跳一版——否则 CHANGELOG 里写的版本和流水线实际发布的版本会对不上。
+ */
+function resolveNextVersion({
+  currentVersion,
+  previousTag,
+  requestedVersion,
+  requestedBump,
+  commits,
+  fallbackBump,
+}) {
+  if (requestedVersion) return requestedVersion;
+  if (requestedBump) return bumpVersion(currentVersion, requestedBump);
+  const taggedVersion = previousTag ? previousTag.replace(/^v/u, "") : null;
+  if (taggedVersion && compareVersions(currentVersion, taggedVersion) > 0) {
+    return currentVersion;
+  }
+  return bumpVersion(currentVersion, fallbackBump);
+}
+
+/** 数字段比较；只用于判断“当前版本是否已经领先于最近 tag”。 */
+function compareVersions(left, right) {
+  const toParts = (value) => String(value).split(/[.+-]/u).map((part) => Number.parseInt(part, 10) || 0);
+  const leftParts = toParts(left);
+  const rightParts = toParts(right);
+  for (let index = 0; index < 3; index += 1) {
+    const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+    if (diff !== 0) return diff > 0 ? 1 : -1;
+  }
+  return 0;
 }
 
 function buildCompareUrl(previousTag, tag) {
