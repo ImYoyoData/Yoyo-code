@@ -315,7 +315,8 @@ jobs:
           # 先转正式再设置 latest：草稿状态下设置 latest 会被 GitHub 拒绝。
           gh release edit "$TAG" --repo "$REPO" --draft=false
           gh release edit "$TAG" --repo "$REPO" --latest
-          gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isLatest,publishedAt \
-            --template '{{.tagName}} draft={{.isDraft}} latest={{.isLatest}} published={{.publishedAt}}' \
+          # gh release view 没有 isLatest 字段（会把任务直接中断），只取存在的字段。
+          gh release view "$TAG" --repo "$REPO" --json tagName,isDraft,isPrerelease,publishedAt,assets \
+            --template '{{.tagName}} draft={{.isDraft}} prerelease={{.isPrerelease}} assets={{len .assets}} published={{.publishedAt}}' \
             >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

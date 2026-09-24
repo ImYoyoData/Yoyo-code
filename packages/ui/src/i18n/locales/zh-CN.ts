@@ -1145,6 +1145,7 @@ const zhCN: Record<string, string> = {
   "updateReady.confirm.ok": "立即重启更新",
   "updateReady.confirm.cancel": "稍后",
   "updateDialog.availableTitle": "发现新版本 v{version}",
+  "updateDialog.availableDescription": "点击下载更新，只下载与当前版本的差异部分，下载完成后重启即可升级。",
   "updateDialog.downloadingTitle": "正在下载 v{version}",
   "updateDialog.readyTitle": "v{version} 已准备就绪",
   "updateDialog.releaseDate": "{date}",
@@ -1164,7 +1165,8 @@ const zhCN: Record<string, string> = {
   "update.toast.alreadyDownloading": "正在下载新版本（{progress}%）",
   "update.toast.ready": "v{version} 已下载，重启即可安装",
   "update.toast.devSkipped": "开发环境不检查更新",
-  "update.toast.error": "检查更新失败：{error}",
+  // 手动检查失败只提示失败：底层 HTTP/网络原文对用户没有可操作信息。
+  "update.toast.failed": "检查更新失败，请稍后重试",
   "forceUpdate.title": "需要升级 Yoyo Code 后继续使用",
   "forceUpdate.description":
     "当前版本 v{currentVersion} 低于最低可用版本 v{minimalVersion}。请先完成升级，升级前暂时无法继续使用当前客户端。",

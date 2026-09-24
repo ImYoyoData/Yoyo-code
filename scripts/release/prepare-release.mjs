@@ -183,7 +183,14 @@ function resolveNextVersion({
   if (taggedVersion && compareVersions(currentVersion, taggedVersion) > 0) {
     return currentVersion;
   }
-  return bumpVersion(currentVersion, fallbackBump);
+  // 流水线不回写 package.json，所以仓库里的版本可能落后于已发布的 tag。
+  // 直接在当前版本之上跳一版会算出已经存在的 tag（例如 package.json 3.15.2 + tag v3.15.3 → 又得到 3.15.3），
+  // 建 release 时必然失败。这里以两者较高的版本为基数递增。
+  const baseVersion =
+    taggedVersion && compareVersions(taggedVersion, currentVersion) > 0
+      ? taggedVersion
+      : currentVersion;
+  return bumpVersion(baseVersion, fallbackBump);
 }
 
 /** 数字段比较；只用于判断“当前版本是否已经领先于最近 tag”。 */
