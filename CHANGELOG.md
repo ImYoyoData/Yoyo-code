@@ -3,6 +3,34 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.3 — 2026-09-24
+
+## 中文
+
+版本 **v3.15.3**（2026-09-24）
+
+### 其它变更
+
+- finalize 作业没有 checkout，gh 无法推断仓库而秒失败。现在显式传仓库，并把「转正式」与「标记 latest」拆成两步（草稿状态下设 latest 会被拒绝），同时把发布后的 Release 状态写进作业摘要。
+  - _EN:_
+    - The finalize job has no checkout, so gh could not infer the repository and failed immediately. Pass the repository explicitly, split "un-draft" and "mark latest" into two calls (setting latest while still a draft is rejected), and print the resulting release state into the job summary.
+
+
+## English
+
+Release **v3.15.3** (2026-09-24)
+
+### Other Changes
+
+- The finalize job has no checkout, so gh could not infer the repository and failed immediately. Pass the repository explicitly, split "un-draft" and "mark latest" into two calls (setting latest while still a draft is rejected), and print the resulting release state into the job summary.
+  - _中文：_
+    - finalize 作业没有 checkout，gh 无法推断仓库而秒失败。现在显式传仓库，并把「转正式」与「标记 latest」拆成两步（草稿状态下设 latest 会被拒绝），同时把发布后的 Release 状态写进作业摘要。
+
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.2...v3.15.3
+
 ## v3.15.2 — 2026-09-24
 
 ## 中文
