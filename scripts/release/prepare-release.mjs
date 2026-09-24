@@ -82,12 +82,21 @@ function readPackageVersion() {
   return match[1];
 }
 
-/** 只改 version 这一行，避免把整份 package.json 重新序列化造成无关 diff。 */
+/**
+ * 只改 version 这一行，避免把整份 package.json 重新序列化造成无关 diff。
+ *
+ * 幂等：版本号可能已经由分支上的准备提交推进过（本仓库常规流程），此时不需要改写，
+ * 更不能因为"内容没变化"就报错——那会让流水线在发布提交无内容时整体失败。
+ */
 function writePackageVersion(version) {
   const raw = readFileSync(PACKAGE_JSON_PATH, "utf8");
-  const next = raw.replace(/("version"\s*:\s*")[^"]+(")/, `$1${version}$2`);
-  if (next === raw) throw new Error("package.json 的 version 未被替换");
-  writeFileSync(PACKAGE_JSON_PATH, next, "utf8");
+  const match = /("version"\s*:\s*")([^"]+)(")/.exec(raw);
+  if (!match) throw new Error("package.json 里找不到 version 字段");
+  if (match[2] === version) {
+    return false;
+  }
+  writeFileSync(PACKAGE_JSON_PATH, raw.replace(match[0], `$1${version}$3`), "utf8");
+  return true;
 }
 
 function main() {
@@ -120,7 +129,7 @@ function main() {
     return;
   }
 
-  writePackageVersion(version);
+  const versionRewritten = writePackageVersion(version);
   const existingChangelog = existsSync(CHANGELOG_PATH)
     ? readFileSync(CHANGELOG_PATH, "utf8")
     : "";
@@ -131,7 +140,11 @@ function main() {
   );
   writeFileSync(options.notesOut, renderBilingualNotes(notesArgs), "utf8");
 
-  console.log(`版本 ${currentVersion} -> ${version}（依据提交推断: ${bump}）`);
+  console.log(
+    versionRewritten
+      ? `版本 ${currentVersion} -> ${version}（依据提交推断: ${bump}）`
+      : `版本已是 ${version}（分支上已推进），本次只更新更新日志`,
+  );
   console.log(`Release 正文: ${options.notesOut}`);
   console.log(`CHANGELOG.md 已更新，本次包含 ${commits.length} 条提交。`);
   emitOutput({
