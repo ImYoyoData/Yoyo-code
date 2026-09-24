@@ -707,6 +707,11 @@ async function main() {
     "electron-builder.config.js",
     osBuilderFlagMap[os],
     archBuilderFlagMap[arch],
+    // electron-builder 默认 publish 策略是 onTagOrDraft：CI 里已存在同名草稿 Release 时，
+    // 它会在打包阶段自行上传并索要 GH_TOKEN，缺 token 就在这一步整体失败。
+    // 发布由 CI 的 gh release upload 负责（本地也不该意外上传），这里固定关闭自动发布。
+    "--publish",
+    "never",
   ];
 
   console.log(`[bundle] target=${os}/${arch}`);
