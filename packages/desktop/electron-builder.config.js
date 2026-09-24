@@ -233,9 +233,19 @@ const PACKAGING_PRUNE_PATTERNS = [
   "!**/SECURITY*",
 ];
 
+/**
+ * 产物名里的产品名不带空格。
+ *
+ * electron-builder 会把更新清单（latest.yml / latest-mac.yml）里的下载 url 规范成无空格形式
+ * （`Yoyo Code-1.2.3-win-x64.exe` → `Yoyo-Code-1.2.3-win-x64.exe`），而磁盘上的文件与
+ * `gh release upload` 上传的资产名仍带空格。客户端照清单下载就会 404。
+ * 这里直接用同一种规范名，让「文件名 / 更新清单 / Release 资产」三者一致。
+ */
+const desktopArtifactProductName = desktopProductIdentity.productName.replace(/\s+/gu, "-");
+
 function buildDesktopArtifactName(platformName, extension = "${ext}") {
   // 测试环境产物必须和正式安装包文件名区分，避免上传、下载或人工验收时混用。
-  return `\${productName}-\${version}-${platformName}-\${arch}${desktopArtifactEnvSuffix}.${extension}`;
+  return `${desktopArtifactProductName}-\${version}-${platformName}-\${arch}${desktopArtifactEnvSuffix}.${extension}`;
 }
 
 function runAsarCommand(args) {
