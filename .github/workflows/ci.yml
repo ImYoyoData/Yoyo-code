@@ -1,0 +1,46 @@
+# 开发分支与 PR 的基础检查。发布流程（push 到 main）见 release.yml。
+#
+# 说明：这里只跑根工作区的 lint 与 typecheck。apps/zcode-cli 自带的聚合命令走 turbo，
+# 而当前依赖里没有安装 turbo，因此不在这里调用；需要覆盖 Agent 代码时按下面对应包单独执行
+# `npx tsc -p apps/zcode-cli/packages/<pkg>/tsconfig.json --noEmit`。
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HUSKY: "0"
+      # 该 job 不打包 Electron，但 pnpm install 会触发 electron 的 postinstall 下载。
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
