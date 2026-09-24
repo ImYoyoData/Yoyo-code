@@ -3,6 +3,54 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.4 — 2026-09-24
+
+## 中文
+
+版本 **v3.15.4**（2026-09-24）
+
+### 问题修复
+
+- 检查更新失败只给一句失败提示，不再回显底层 HTTP/网络原文、也不再打开错误界面；发现新版本时自动弹出应用内更新弹窗，点击即下载增量包，下载完成后重启安装；存在待处理更新时，帮助图标、帮助菜单更新项与顶栏更新入口都显示红点。
+  - 手动检查的提示收敛到根平台副作用这一处所有者，替换掉原来直接把 electron-updater 原始错误吐出来的 switch。
+  - 发布版本号以 package.json 与最近 tag 中较高者为基数递增，仓库版本落后于已发布 tag 时不再算出已存在的 tag。
+  - _EN:_
+    - A failed update check now shows a short failure notice instead of the raw HTTP/network error, and no error screen is opened. Discovering a new version opens an in-app dialog that downloads the differential package on click and then restarts to install. The help icon, the help-menu update entry and the top-bar update entry all carry a red dot while an update is pending.
+    - The manual-check notice now has a single owner (the root platform effects), replacing the duplicated switch that rendered the raw electron-updater message.
+    - Release version resolution is based on the higher of package.json and the latest tag, so a repo version lagging behind an already published tag no longer produces an existing tag again.
+
+### 其它变更
+
+- gh release view 没有 isLatest 字段，导致发布摘要那一步在「转正式 + 标 latest 已成功」之后把作业判失败。改用实际存在的字段。
+  - _EN:_
+    - gh release view has no isLatest field, so the summary command aborted the job after the release had already been un-drafted and marked latest. Use only existing fields.
+
+
+## English
+
+Release **v3.15.4** (2026-09-24)
+
+### Fixes
+
+- A failed update check now shows a short failure notice instead of the raw HTTP/network error, and no error screen is opened. Discovering a new version opens an in-app dialog that downloads the differential package on click and then restarts to install. The help icon, the help-menu update entry and the top-bar update entry all carry a red dot while an update is pending.
+  - The manual-check notice now has a single owner (the root platform effects), replacing the duplicated switch that rendered the raw electron-updater message.
+  - Release version resolution is based on the higher of package.json and the latest tag, so a repo version lagging behind an already published tag no longer produces an existing tag again.
+  - _中文：_
+    - 检查更新失败只给一句失败提示，不再回显底层 HTTP/网络原文、也不再打开错误界面；发现新版本时自动弹出应用内更新弹窗，点击即下载增量包，下载完成后重启安装；存在待处理更新时，帮助图标、帮助菜单更新项与顶栏更新入口都显示红点。
+    - 手动检查的提示收敛到根平台副作用这一处所有者，替换掉原来直接把 electron-updater 原始错误吐出来的 switch。
+    - 发布版本号以 package.json 与最近 tag 中较高者为基数递增，仓库版本落后于已发布 tag 时不再算出已存在的 tag。
+
+### Other Changes
+
+- gh release view has no isLatest field, so the summary command aborted the job after the release had already been un-drafted and marked latest. Use only existing fields.
+  - _中文：_
+    - gh release view 没有 isLatest 字段，导致发布摘要那一步在「转正式 + 标 latest 已成功」之后把作业判失败。改用实际存在的字段。
+
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.3...v3.15.4
+
 ## v3.15.3 — 2026-09-24
 
 ## 中文
