@@ -3,6 +3,46 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.1 — 2026-09-24
+
+## 中文
+
+版本 **v3.15.1**（2026-09-24）
+
+### 问题修复
+
+- 产物名不再带空格。electron-builder 会把 latest*.yml 里的下载 url 规范成连字符形式，之前「Yoyo Code-*.exe」与清单对不上，客户端更新会 404。现在文件名、更新清单与 Release 资产三者一致。
+  - _EN:_
+    - Build artifact names no longer contain spaces. electron-builder writes the download url in latest*.yml with spaces normalized to hyphens, so the previous "Yoyo Code-*.exe" files never matched the manifest and the in-app updater would 404. File name, update manifest and release asset now agree.
+- 从 github publish 配置里移除 useMultipleRangeRequest——该字段只对 generic provider 合法，写在 github 下会让 electron-builder 配置校验失败并中断两个平台的打包。差分下载不受影响：electron-updater 的 GitHubProvider 内部已固定 isUseMultipleRangeRequest=false。
+  - _EN:_
+    - Drop useMultipleRangeRequest from the github publish config — that field is only valid for the generic provider and made electron-builder reject the config, which broke both platform builds. Differential download is unaffected because electron-updater's GitHubProvider already pins isUseMultipleRangeRequest=false.
+- 版本改写改为幂等（分支上已准备好的版本号即为发布版本），草稿 Release 创建也改为幂等，失败重跑可继续。
+  - _EN:_
+    - Make the version rewrite idempotent (a prepared version on the branch is already the release version) and make draft-release creation idempotent so a re-run after a failure can continue.
+
+
+## English
+
+Release **v3.15.1** (2026-09-24)
+
+### Fixes
+
+- Build artifact names no longer contain spaces. electron-builder writes the download url in latest*.yml with spaces normalized to hyphens, so the previous "Yoyo Code-*.exe" files never matched the manifest and the in-app updater would 404. File name, update manifest and release asset now agree.
+  - _中文：_
+    - 产物名不再带空格。electron-builder 会把 latest*.yml 里的下载 url 规范成连字符形式，之前「Yoyo Code-*.exe」与清单对不上，客户端更新会 404。现在文件名、更新清单与 Release 资产三者一致。
+- Drop useMultipleRangeRequest from the github publish config — that field is only valid for the generic provider and made electron-builder reject the config, which broke both platform builds. Differential download is unaffected because electron-updater's GitHubProvider already pins isUseMultipleRangeRequest=false.
+  - _中文：_
+    - 从 github publish 配置里移除 useMultipleRangeRequest——该字段只对 generic provider 合法，写在 github 下会让 electron-builder 配置校验失败并中断两个平台的打包。差分下载不受影响：electron-updater 的 GitHubProvider 内部已固定 isUseMultipleRangeRequest=false。
+- Make the version rewrite idempotent (a prepared version on the branch is already the release version) and make draft-release creation idempotent so a re-run after a failure can continue.
+  - _中文：_
+    - 版本改写改为幂等（分支上已准备好的版本号即为发布版本），草稿 Release 创建也改为幂等，失败重跑可继续。
+
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.0...v3.15.1
+
 ## v3.15.0 — 2026-09-24
 
 ## 中文
@@ -98,4 +138,3 @@ Release **v3.15.0** (2026-09-24)
 ---
 
 提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.14.0...v3.15.0
-
