@@ -99,10 +99,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "${{ steps.prepare.outputs.tag }}" \
-            --draft \
-            --title "${{ steps.prepare.outputs.tag }}" \
-            --notes-file "${{ steps.prepare.outputs.notes_file }}"
+          TAG="${{ steps.prepare.outputs.tag }}"
+          NOTES="${{ steps.prepare.outputs.notes_file }}"
+          # 失败重跑时草稿可能已存在；直接 create 会报 "already exists" 而不是继续发布。
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release ${TAG} 已存在，更新正文"
+            gh release edit "$TAG" --notes-file "$NOTES"
+          else
+            gh release create "$TAG" --draft --title "$TAG" --notes-file "$NOTES"
+          fi
 
       - name: 汇总
         if: steps.prepare.outputs.should_release == 'true'
