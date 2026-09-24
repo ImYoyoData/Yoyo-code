@@ -87,6 +87,9 @@ function readPackageVersion() {
  *
  * 幂等：版本号可能已经由分支上的准备提交推进过（本仓库常规流程），此时不需要改写，
  * 更不能因为"内容没变化"就报错——那会让流水线在发布提交无内容时整体失败。
+ *
+ * 注意：这里必须按下标拼接，不能用 `raw.replace(match[0], "$1...")` 那种写法——
+ * `replace` 的首参是字符串时替换串里的 `$1` 不会被展开，会把文件写成 `$1x.y.z$3` 这类语法错误。
  */
 function writePackageVersion(version) {
   const raw = readFileSync(PACKAGE_JSON_PATH, "utf8");
@@ -95,7 +98,12 @@ function writePackageVersion(version) {
   if (match[2] === version) {
     return false;
   }
-  writeFileSync(PACKAGE_JSON_PATH, raw.replace(match[0], `$1${version}$3`), "utf8");
+  const next = `${raw.slice(0, match.index)}"version": "${version}"${raw.slice(
+    match.index + match[0].length,
+  )}`;
+  // 写回前先自校验：流水线上的 package.json 一旦损坏，所有平台构建都会在装依赖时直接失败。
+  JSON.parse(next);
+  writeFileSync(PACKAGE_JSON_PATH, next, "utf8");
   return true;
 }
 
