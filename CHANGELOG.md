@@ -3,6 +3,37 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.5 — 2026-09-27
+
+## 中文
+
+版本 **v3.15.5**（2026-09-27）
+
+### 问题修复
+
+- 添加模型时按端点声明回填能力，缺失项提示并写入兜底
+  - _EN:_
+    - Model capabilities are now back-filled from the capability fields the provider declares in its own /models response, instead of always using the built-in catalog's catch-all guess.
+    - The catalog only covered about 80 model families, so gpt-4o, gpt-5, claude-sonnet-4-5 and gemini-2.5-pro silently fell back to those guesses, which decide request truncation and whether image attachments can be sent.
+    - Fields the endpoint does not declare are no longer inferred from the model name. When neither the endpoint nor a model-specific catalog rule provides a value, the dialog now names which fields (context window, max output tokens, input modalities) are defaults and writes those fallbacks into the model config, so the UI and the runtime agree.
+    - Precedence is endpoint declaration, then a model-specific catalog rule, then the generic fallback. Models the catalog does cover keep following their curated values and are not pinned.
+    - Context window and max output tokens are now pre-filled as real values with a restore button, instead of showing the recommendation as grey placeholder text.
+
+
+## English
+
+Release **v3.15.5** (2026-09-27)
+
+### Fixes
+
+- Model capabilities are now back-filled from the capability fields the provider declares in its own /models response, instead of always using the built-in catalog's catch-all guess.
+  - The catalog only covered about 80 model families, so gpt-4o, gpt-5, claude-sonnet-4-5 and gemini-2.5-pro silently fell back to those guesses, which decide request truncation and whether image attachments can be sent.
+  - Fields the endpoint does not declare are no longer inferred from the model name. When neither the endpoint nor a model-specific catalog rule provides a value, the dialog now names which fields (context window, max output tokens, input modalities) are defaults and writes those fallbacks into the model config, so the UI and the runtime agree.
+  - Precedence is endpoint declaration, then a model-specific catalog rule, then the generic fallback. Models the catalog does cover keep following their curated values and are not pinned.
+  - Context window and max output tokens are now pre-filled as real values with a restore button, instead of showing the recommendation as grey placeholder text.
+  - _中文：_
+    - 添加模型时按端点声明回填能力，缺失项提示并写入兜底
+
 ## v3.15.4 — 2026-09-24
 
 ## 中文
