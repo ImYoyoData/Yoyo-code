@@ -1,5 +1,9 @@
 import type { ProviderConfigObject } from "@zcode/provider";
 import { normalizeApiKeyForHeader } from "../providers/api/apiKeyHeaders.js";
+import {
+  parseProviderModelCatalog,
+  type ProviderModelCatalogEntry,
+} from "./providerModelCapabilities.js";
 import type {
   ProviderSettingsModelListTarget,
   ProviderSettingsModelLister,
@@ -75,33 +79,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * 兼容 OpenAI 风格 `{ data: [{ id }] }`、部分网关的 `{ models: [...] }` 与裸数组。
  * 保留供应商返回顺序：目录顺序本身就是供应商的推荐排序。
+ * 条目携带端点自己声明的能力，回填时优先于内置规则目录的推断值。
  */
 export function parseProviderModelIds(payload: unknown): readonly string[] {
-  const candidates = Array.isArray(payload)
-    ? payload
-    : isRecord(payload) && Array.isArray(payload.data)
-      ? payload.data
-      : isRecord(payload) && Array.isArray(payload.models)
-        ? payload.models
-        : [];
-
-  const modelIds: string[] = [];
-  const seen = new Set<string>();
-  for (const candidate of candidates) {
-    const raw =
-      typeof candidate === "string"
-        ? candidate
-        : isRecord(candidate)
-          ? (candidate.id ?? candidate.name ?? candidate.model)
-          : undefined;
-    const modelId = typeof raw === "string" ? raw.trim() : "";
-    if (!modelId || seen.has(modelId)) {
-      continue;
-    }
-    seen.add(modelId);
-    modelIds.push(modelId);
-  }
-  return modelIds;
+  return parseProviderModelCatalog(payload).map((entry) => entry.id);
 }
 
 /** 网关的错误信封不统一，先取常见字段，再退回状态码，避免把整段 HTML 抛给用户。 */
@@ -160,7 +141,7 @@ export function createProviderModelsLister(
         };
       }
       try {
-        return { success: true, modelIds: parseProviderModelIds(await response.json()) };
+        return { success: true, models: parseProviderModelCatalog(await response.json()) };
       } catch {
         return {
           success: false,

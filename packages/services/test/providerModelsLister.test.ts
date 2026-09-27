@@ -96,7 +96,7 @@ test("模型目录解析兼容 data / models / 裸数组并去重", () => {
   assert.deepEqual(parseProviderModelIds({ unexpected: true }), []);
 });
 
-test("拉取成功时返回供应商顺序的模型列表", async () => {
+test("拉取成功时返回供应商顺序的模型列表与端点声明的能力", async () => {
   const calls: { url: string; headers: Record<string, string> }[] = [];
   const lister = createProviderModelsLister({
     fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -104,7 +104,16 @@ test("拉取成功时返回供应商顺序的模型列表", async () => {
         url: String(input),
         headers: (init?.headers ?? {}) as Record<string, string>,
       });
-      return jsonResponse({ data: [{ id: "deepseek/deepseek-v4-flash" }, { id: "typesafe/jev" }] });
+      return jsonResponse({
+        data: [
+          {
+            id: "deepseek/deepseek-v4-flash",
+            context_length: 131072,
+            architecture: { input_modalities: ["text"] },
+          },
+          { id: "typesafe/jev" },
+        ],
+      });
     }) as typeof fetch,
   });
 
@@ -114,9 +123,26 @@ test("拉取成功时返回供应商顺序的模型列表", async () => {
     apiKey: "sk-test-key",
   });
 
+  // 目录必须连同能力一起返回：只给 ID 会让回填退回规则目录的兜底猜测值。
   assert.deepEqual(result, {
     success: true,
-    modelIds: ["deepseek/deepseek-v4-flash", "typesafe/jev"],
+    models: [
+      {
+        id: "deepseek/deepseek-v4-flash",
+        config: {
+          properties: {
+            contextWindow: 131072,
+            inputFormat: {
+              supportsImage: false,
+              supportsVideo: false,
+              supportsAudio: false,
+              supportsPdf: false,
+            },
+          },
+        },
+      },
+      { id: "typesafe/jev", config: {} },
+    ],
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.url, "https://api.commandcode.ai/provider/v1/models");

@@ -3081,6 +3081,11 @@ const enUS: Record<string, string> = {
   "settings.modelProvider.reasoning": "Reasoning settings",
   "settings.hooks.advanced": "Advanced",
   "settings.modelProvider.maxOutputTokens": "Max output tokens",
+  "settings.modelProvider.resetToRecommended": "Restore recommended",
+  "settings.modelProvider.capabilityNotice.unverifiedTitle": "No capability info for {modelId}",
+  "settings.modelProvider.capabilityNotice.unverifiedBody":
+    "These fields currently hold defaults, not this model's real capabilities: {fields}. Check them against the provider before saving.",
+  "settings.modelProvider.capabilityNotice.separator": ", ",
   "settings.modelProvider.inputModalities": "Input types",
   "settings.modelProvider.outputModalities": "Output types",
   "settings.modelProvider.modality.text": "Text",

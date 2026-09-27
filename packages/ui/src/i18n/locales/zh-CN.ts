@@ -2885,6 +2885,11 @@ const zhCN: Record<string, string> = {
   "settings.modelProvider.reasoning": "推理设置",
   "settings.hooks.advanced": "高级",
   "settings.modelProvider.maxOutputTokens": "最大输出 Token",
+  "settings.modelProvider.resetToRecommended": "恢复推荐值",
+  "settings.modelProvider.capabilityNotice.unverifiedTitle": "未获取到 {modelId} 的能力信息",
+  "settings.modelProvider.capabilityNotice.unverifiedBody":
+    "以下项目当前是默认值，不是该模型的真实能力：{fields}。请按 Provider 实际支持情况确认后再保存。",
+  "settings.modelProvider.capabilityNotice.separator": "、",
   "settings.modelProvider.inputModalities": "输入类型",
   "settings.modelProvider.outputModalities": "输出类型",
   "settings.modelProvider.modality.text": "文本",

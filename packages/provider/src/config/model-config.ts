@@ -355,6 +355,27 @@ type ExactModelConfigRule = Extract<
   { type: "provider-model" | "manual-provider-model" }
 >;
 
+/** resolve 的返回值加一份来源标记，供设置页区分"已知能力"与"兜底推断"。 */
+export interface ModelConfigResolutionTrace {
+  readonly config: ModelConfig;
+  /** 是否命中了针对该模型（或该端点）的专用规则；false 表示只落到通配兜底。 */
+  readonly hasModelSpecificRule: boolean;
+}
+
+type RegexModelConfigRule = Extract<
+  ModelConfigRule,
+  { type: "model" | "model-api" | "provider-site" }
+>;
+
+/**
+ * 通配 `.*` 只表达"没有更具体的知识"，不算专用规则。
+ * 站点规则即使模型通配，也已经把该端点的能力写死，视为有依据。
+ */
+function isModelSpecificRule(rule: RegexModelConfigRule): boolean {
+  if (rule.type === "provider-site" && rule.baseUrlMatch !== undefined) return true;
+  return rule.modelMatch !== ".*";
+}
+
 export interface ModelConfigRuleResolutionInput {
   readonly providerId: string;
   readonly templateId?: string | null;
@@ -385,11 +406,27 @@ export class ModelConfigRules {
   }
 
   resolve(input: ModelConfigRuleResolutionInput): ModelConfig {
+    return this.#fold(input).config;
+  }
+
+  /**
+   * 与 resolve 同一趟折叠，额外报告是否命中了针对该模型族的专用规则。
+   *
+   * 只有兜底 `.*` 命中时得到的是人工维护目录里的通配推断，不是这个模型的事实；
+   * 设置页据此提示用户确认，而不是把推断值当成已知能力展示。
+   */
+  resolveWithProvenance(input: ModelConfigRuleResolutionInput): ModelConfigResolutionTrace {
+    return this.#fold(input);
+  }
+
+  #fold(input: ModelConfigRuleResolutionInput): ModelConfigResolutionTrace {
     let result = ModelConfig.empty();
+    let hasModelSpecificRule = false;
     const baseUrl = input.baseUrl == null ? undefined : normalizeBaseURLForRuleMatch(input.baseUrl);
     for (const rule of this.#rules) {
       if (isExactModelRule(rule)) {
         if (rule.providerId !== input.providerId || rule.modelId !== input.modelId) continue;
+        hasModelSpecificRule = true;
         // 手动规则要求所有可编辑叶子齐全，因此可直接覆盖；系统叶子继续来自当前身份的规则。
         // 清空整份基线会既丢失系统映射，也迫使 UI 把旧模型的隐藏配置复制进个人规则。
         result = (
@@ -400,8 +437,10 @@ export class ModelConfigRules {
         continue;
       }
       if (rule.type === "template-model") {
-        if (rule.templateId === input.templateId && rule.modelId === input.modelId)
+        if (rule.templateId === input.templateId && rule.modelId === input.modelId) {
+          hasModelSpecificRule = true;
           result = result.overlay(rule.config);
+        }
         continue;
       }
       // 只放宽推荐规则匹配，不改真实请求里的模型 ID。
@@ -417,9 +456,10 @@ export class ModelConfigRules {
         (baseUrl === undefined || !matchesRule(rule.baseUrlMatch, baseUrl))
       )
         continue;
+      if (isModelSpecificRule(rule)) hasModelSpecificRule = true;
       result = result.overlay(rule.config);
     }
-    return result;
+    return { config: result, hasModelSpecificRule };
   }
 
   setExact(

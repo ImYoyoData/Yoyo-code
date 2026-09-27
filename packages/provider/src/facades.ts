@@ -123,6 +123,11 @@ export interface ModelConfigResolution {
   readonly inheritedConfig: ModelConfigObject;
   readonly effectiveConfig: ModelConfigObject;
   readonly issues: readonly ConfigValidationIssue[];
+  /**
+   * 是否命中了针对该模型的专用规则。false 表示 inheritedConfig 里的能力全部来自
+   * 通配兜底，属于推断而非该模型的事实，设置页需要提示用户确认。
+   */
+  readonly hasModelSpecificRule: boolean;
 }
 
 export type ResolveModelConfigInput =
@@ -244,16 +249,18 @@ export class ProviderSettingsFacade {
         snapshot.config.zcodeBuiltinModelRules,
         snapshot.config.personalModels,
       );
-      const config = modelRules.resolve({
+      const trace = modelRules.resolveWithProvenance({
         providerId: input.providerId,
         templateId: provider.templateId,
         modelId: input.modelId,
         apiType: provider.config.api?.type,
         baseUrl: provider.config.api?.baseUrl,
       });
+      const config = trace.config;
       return Object.freeze({
         inheritedConfig: config.toJSON(),
         effectiveConfig: config.toJSON(),
+        hasModelSpecificRule: trace.hasModelSpecificRule,
         issues: Object.freeze([
           ...config.validateComplete(["providers", input.providerId, "models", input.modelId]),
         ]),
@@ -261,13 +268,14 @@ export class ProviderSettingsFacade {
     }
 
     const personalConfig = parseModelConfig(input.personalConfig);
-    const inheritedConfig = snapshot.config.zcodeBuiltinModelRules.resolve({
+    const inheritedTrace = snapshot.config.zcodeBuiltinModelRules.resolveWithProvenance({
       providerId: input.providerId,
       templateId: provider.templateId,
       modelId: input.modelId,
       apiType: provider.config.api?.type,
       baseUrl: provider.config.api?.baseUrl,
     });
+    const inheritedConfig = inheritedTrace.config;
     let personalRules = snapshot.config.personalModels;
     if (input.originalModelId !== input.modelId) {
       personalRules = personalRules.renameExactModel(
@@ -291,6 +299,8 @@ export class ProviderSettingsFacade {
     return Object.freeze({
       inheritedConfig: inheritedConfig.toJSON(),
       effectiveConfig: config.toJSON(),
+      // 只看内置规则：草稿里那份个人配置是用户正在编辑的内容，不能反过来充当"有依据"。
+      hasModelSpecificRule: inheritedTrace.hasModelSpecificRule,
       issues: Object.freeze([
         ...config.validateComplete(["providers", input.providerId, "models", input.modelId]),
       ]),
