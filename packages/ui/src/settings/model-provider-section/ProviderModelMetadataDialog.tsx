@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
-import { Loader2Icon, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button.js";
 import {
   Dialog,
@@ -9,10 +9,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog.js";
-import { Input } from "@/components/ui/input.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import type { ModelConfigObject } from "@zcode/provider";
-import type { ProviderSettingsModelListResult } from "@zcode/services";
+import type { ProviderModelCatalogEntry, ProviderSettingsModelListResult } from "@zcode/services";
 import type {
   ProviderModelDraftValues,
   ProviderModelDraftCommitResult,
@@ -24,7 +23,6 @@ import {
   ProviderModelReasoningSettings,
 } from "@/settings/model-provider-section/ProviderModelSettingsGroups.js";
 import { isImeComposingKeyEvent } from "@/lib/imeComposition.js";
-import { TECHNICAL_INPUT_ATTRIBUTES } from "@/lib/technicalInputAttributes.js";
 import {
   ProviderModelMetadataDialogActions,
   ModelSmartConfigSwitch,
@@ -32,11 +30,10 @@ import {
   ModelConfigRestoreButton,
 } from "@/settings/model-provider-section/ProviderModelMetadataDialogActions.js";
 import { ProviderModelIdField } from "@/settings/model-provider-section/ProviderModelIdField.js";
-import { modelEditorControlStyle } from "@/settings/model-provider-section/modelEditorControlStyle.js";
-import {
-  ModelConfigHelp,
-  ModelConfigInputLabel,
-} from "@/settings/model-provider-section/ModelConfigHelp.js";
+import { ProviderModelNumericField } from "@/settings/model-provider-section/ProviderModelNumericField.js";
+import { ProviderModelCapabilityNotice } from "@/settings/model-provider-section/ProviderModelCapabilityNotice.js";
+import type { CapabilityField } from "@/settings/model-provider-section/ProviderModelCatalogDraft.js";
+import { ModelConfigHelp } from "@/settings/model-provider-section/ModelConfigHelp.js";
 
 import { ModelEditorAdvanced } from "@/settings/model-provider-section/ModelEditorAdvanced.js";
 
@@ -63,6 +60,8 @@ export function ProviderModelMetadataDialog({
   modelDefaultsLoaded = false,
   onModelIdBlur,
   onListModelIds,
+  onCatalogSelect,
+  unverifiedFields = [],
 }: {
   mode?: "add" | "edit";
   open: boolean;
@@ -83,6 +82,10 @@ export function ProviderModelMetadataDialog({
   onModelIdBlur?: () => void;
   /** 按供应商端点拉取模型目录；仅新增模型且 ID 可编辑时提供，编辑态仍走改名语义。 */
   onListModelIds?: () => Promise<ProviderSettingsModelListResult>;
+  /** 目录点选时上抛端点为该模型声明的能力，供回填基线与提交落盘使用。 */
+  onCatalogSelect?: (entry: ProviderModelCatalogEntry) => void;
+  /** 没有可靠来源、当前显示的是默认兜底值的能力项；非空时展示确认提示。 */
+  unverifiedFields?: readonly CapabilityField[];
 }) {
   const { intl } = useZCodeIntl();
   const [validationAttempt, setValidationAttempt] = useState(0);
@@ -96,6 +99,22 @@ export function ProviderModelMetadataDialog({
   const activeOverrides = smart ? overrideFields : new Set<string>();
   const overridden = (field: string, legacy = false) =>
     smart && (activeOverrides ? activeOverrides.has(field) : legacy);
+  // 推荐值以真值预填：用户要的"自动带出"必须看得见数字，而不是灰色提示。
+  // 空输入仍表示跟随推荐，因此清空输入框就等于撤销个人覆盖。
+  const recommendedContextWindow =
+    smart && inheritedConfig?.properties?.contextWindow != null
+      ? String(inheritedConfig.properties.contextWindow)
+      : "";
+  const recommendedMaxOutputTokens =
+    smart && inheritedConfig?.optionSpecs?.maxOutputTokens?.max != null
+      ? String(inheritedConfig.optionSpecs.maxOutputTokens.max)
+      : "";
+  const contextWindowDisplay = draft.contextWindowValue.trim()
+    ? draft.contextWindowValue
+    : recommendedContextWindow;
+  const maxOutputTokensDisplay = draft.maxOutputTokensValue.trim()
+    ? draft.maxOutputTokensValue
+    : recommendedMaxOutputTokens;
   const editModelLabel = intl.formatMessage({
     id: "settings.modelProvider.editModel",
   });
@@ -191,6 +210,7 @@ export function ProviderModelMetadataDialog({
                     id: "settings.modelProvider.modelId",
                   })}
                   onListModelIds={modelIdCatalogAvailable ? onListModelIds : undefined}
+                  onSelect={modelIdCatalogAvailable ? onCatalogSelect : undefined}
                   onChange={(idValue) => {
                     onDraftChange({ idValue });
                   }}
@@ -204,101 +224,48 @@ export function ProviderModelMetadataDialog({
           </ModelSettingsGroup>
           <ModelSettingsGroup group="tokens">
             <div className="space-y-3">
-              <div>
-                <div className="mb-1 block text-ui-base text-foreground-subtle">
-                  <ModelConfigInputLabel field="contextWindow" htmlFor={contextWindowInputId} />
-                </div>
-                <Input
-                  {...TECHNICAL_INPUT_ATTRIBUTES}
-                  id={contextWindowInputId}
-                  type="text"
-                  autoFocus={shouldFocusContextWindowInput}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  size="lg"
-                  value={draft.contextWindowValue}
-                  data-personal-override={overridden(
-                    "contextWindowValue",
-                    personalConfig?.properties?.contextWindow !== undefined,
-                  )}
-                  className={modelEditorControlStyle(
-                    overridden(
-                      "contextWindowValue",
-                      personalConfig?.properties?.contextWindow !== undefined,
-                    ),
-                  )}
-                  placeholder={
-                    draft.useRecommendedConfigValue === false ||
-                    inheritedConfig?.properties?.contextWindow === undefined
-                      ? undefined
-                      : String(inheritedConfig.properties.contextWindow)
-                  }
-                  onChange={(event) => {
-                    onDraftChange({ contextWindowValue: event.target.value });
-                  }}
-                  onFocus={selectFocusedInputText}
-                  onCompositionStart={handleCompositionStart}
-                  onCompositionEnd={handleCompositionEnd}
-                  onKeyDown={handleTechnicalInputKeyDown}
-                />
-              </div>
+              <ProviderModelCapabilityNotice
+                modelId={draft.idValue.trim()}
+                unverifiedFields={unverifiedFields}
+              />
+              <ProviderModelNumericField
+                inputId={contextWindowInputId}
+                field="contextWindow"
+                value={contextWindowDisplay}
+                overridden={overridden(
+                  "contextWindowValue",
+                  personalConfig?.properties?.contextWindow !== undefined,
+                )}
+                onChangeValue={(contextWindowValue) => onDraftChange({ contextWindowValue })}
+                onReset={() => onDraftChange({ contextWindowValue: "" })}
+                autoFocus={shouldFocusContextWindowInput}
+                onFocus={selectFocusedInputText}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
+                onKeyDown={handleTechnicalInputKeyDown}
+              />
             </div>
           </ModelSettingsGroup>
           <ModelSettingsGroup group="tokens">
             <div className="space-y-3">
-              <div data-model-max-output="true">
-                <div className="mb-1 flex items-center gap-2">
-                  <div className="text-ui-base text-foreground-subtle">
-                    <ModelConfigInputLabel field="maxOutputTokens" htmlFor={maxOutputInputId} />
-                  </div>
-                  {addModelConfigResolutionPending ? (
-                    <span
-                      className="inline-flex shrink-0 items-center text-foreground-subtlest"
-                      role="status"
-                    >
-                      <Loader2Icon className="size-3.5 animate-spin" aria-hidden="true" />
-                      <span className="sr-only">
-                        {intl.formatMessage({ id: "common.loading" })}
-                      </span>
-                    </span>
-                  ) : null}
-                </div>
-                <Input
-                  {...TECHNICAL_INPUT_ATTRIBUTES}
-                  id={maxOutputInputId}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  size="lg"
-                  value={draft.maxOutputTokensValue}
-                  data-personal-override={overridden(
-                    "maxOutputTokensValue",
-                    personalConfig?.optionSpecs?.maxOutputTokens?.max !== undefined,
-                  )}
-                  className={modelEditorControlStyle(
-                    overridden(
-                      "maxOutputTokensValue",
-                      personalConfig?.optionSpecs?.maxOutputTokens?.max !== undefined,
-                    ),
-                  )}
-                  placeholder={
-                    draft.useRecommendedConfigValue === false ||
-                    inheritedConfig?.optionSpecs?.maxOutputTokens?.max === undefined
-                      ? undefined
-                      : String(inheritedConfig.optionSpecs.maxOutputTokens.max)
-                  }
-                  disabled={maxOutputTokensInputDisabled}
-                  aria-label={intl.formatMessage({
-                    id: "settings.modelProvider.maxOutputTokens",
-                  })}
-                  aria-busy={addModelConfigResolutionPending}
-                  onChange={(event) => onDraftChange({ maxOutputTokensValue: event.target.value })}
-                  onFocus={selectFocusedInputText}
-                  onCompositionStart={handleCompositionStart}
-                  onCompositionEnd={handleCompositionEnd}
-                  onKeyDown={handleTechnicalInputKeyDown}
-                />
-              </div>
+              <ProviderModelNumericField
+                inputId={maxOutputInputId}
+                field="maxOutputTokens"
+                value={maxOutputTokensDisplay}
+                overridden={overridden(
+                  "maxOutputTokensValue",
+                  personalConfig?.optionSpecs?.maxOutputTokens?.max !== undefined,
+                )}
+                onChangeValue={(maxOutputTokensValue) => onDraftChange({ maxOutputTokensValue })}
+                onReset={() => onDraftChange({ maxOutputTokensValue: "" })}
+                disabled={maxOutputTokensInputDisabled}
+                pending={addModelConfigResolutionPending}
+                testId="max-output"
+                onFocus={selectFocusedInputText}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
+                onKeyDown={handleTechnicalInputKeyDown}
+              />
             </div>
           </ModelSettingsGroup>
           <ModelEditorAdvanced

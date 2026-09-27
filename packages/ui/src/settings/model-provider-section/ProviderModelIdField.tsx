@@ -7,13 +7,15 @@ import { cn } from "@/components/lib/utils.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { TECHNICAL_INPUT_ATTRIBUTES } from "@/lib/technicalInputAttributes.js";
 import { modelEditorControlStyle } from "@/settings/model-provider-section/modelEditorControlStyle.js";
-import type { ProviderSettingsModelListResult } from "@zcode/services";
+import type { ProviderModelCatalogEntry, ProviderSettingsModelListResult } from "@zcode/services";
 
 type CatalogStatus = "idle" | "loading" | "ready" | "error";
 
 /**
  * 模型 ID 输入框。可选地接入供应商目录：聚焦即按供应商 Base URL 拉取一次模型列表，
  * 供用户点选复填。手写 ID 始终可用，目录只是候选来源，不是唯一写入路径。
+ *
+ * 选中项连同端点自己声明的能力一起上抛：回填要按端点的事实，不能只拿到一个 ID 字符串。
  *
  * 目录刻意渲染成弹窗内的内联区块而不是浮层：模态 Dialog 的 RemoveScroll 只把 dialog content
  * 当作可滚动区域，挂在 body 上的浮层会被拦掉滚轮事件，导致"能点不能滚"。
@@ -25,6 +27,7 @@ export function ProviderModelIdField({
   placeholder,
   onListModelIds,
   onChange,
+  onSelect,
   onBlur,
   onKeyDown,
   onCompositionStart,
@@ -37,6 +40,8 @@ export function ProviderModelIdField({
   /** 未注入时不展示目录入口（例如编辑态或未装配拉取能力的宿主）。 */
   onListModelIds?: () => Promise<ProviderSettingsModelListResult>;
   onChange: (value: string) => void;
+  /** 目录点选时附带该模型的能力声明；手写 ID 不触发。 */
+  onSelect?: (entry: ProviderModelCatalogEntry) => void;
   onBlur?: () => void;
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   onCompositionStart?: () => void;
@@ -49,7 +54,7 @@ export function ProviderModelIdField({
   const optionIdPrefix = useId();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<CatalogStatus>("idle");
-  const [modelIds, setModelIds] = useState<readonly string[]>([]);
+  const [entries, setEntries] = useState<readonly ProviderModelCatalogEntry[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   // 连续聚焦或手动刷新会并发请求，旧响应不能覆盖新结果。
@@ -58,10 +63,10 @@ export function ProviderModelIdField({
   const catalogAvailable = Boolean(onListModelIds) && !readOnly;
   const expanded = open && catalogAvailable;
   const keyword = value.trim().toLowerCase();
-  const visibleModelIds =
+  const visibleEntries =
     status === "ready" && keyword
-      ? modelIds.filter((modelId) => modelId.toLowerCase().includes(keyword))
-      : modelIds;
+      ? entries.filter((entry) => entry.id.toLowerCase().includes(keyword))
+      : entries;
 
   const loadModelIds = useCallback(async () => {
     if (!onListModelIds) {
@@ -75,19 +80,19 @@ export function ProviderModelIdField({
       const result = await onListModelIds();
       if (requestTokenRef.current !== token) return;
       if (result.success) {
-        setModelIds(result.modelIds);
+        setEntries(result.models);
         setStatus("ready");
         // 目录默认不预选：手写 ID 时回车必须仍然是保存，而不是落到第一项。
         setHighlightedIndex(-1);
         return;
       }
-      setModelIds([]);
+      setEntries([]);
       setHighlightedIndex(-1);
       setStatus("error");
       setErrorMessage(resolveCatalogErrorMessage(intl, result.error));
     } catch (error) {
       if (requestTokenRef.current !== token) return;
-      setModelIds([]);
+      setEntries([]);
       setHighlightedIndex(-1);
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : String(error));
@@ -115,24 +120,23 @@ export function ProviderModelIdField({
     }
   };
 
-  const selectModelId = (modelId: string) => {
-    onChange(modelId);
+  const selectEntry = (entry: ProviderModelCatalogEntry) => {
+    onChange(entry.id);
+    onSelect?.(entry);
     setOpen(false);
     inputRef.current?.focus();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (expanded) {
-      if (event.key === "ArrowDown" && visibleModelIds.length > 0) {
+      if (event.key === "ArrowDown" && visibleEntries.length > 0) {
         event.preventDefault();
-        setHighlightedIndex((index) => (index + 1) % visibleModelIds.length);
+        setHighlightedIndex((index) => (index + 1) % visibleEntries.length);
         return;
       }
-      if (event.key === "ArrowUp" && visibleModelIds.length > 0) {
+      if (event.key === "ArrowUp" && visibleEntries.length > 0) {
         event.preventDefault();
-        setHighlightedIndex(
-          (index) => (index - 1 + visibleModelIds.length) % visibleModelIds.length,
-        );
+        setHighlightedIndex((index) => (index - 1 + visibleEntries.length) % visibleEntries.length);
         return;
       }
       if (event.key === "Escape") {
@@ -143,10 +147,10 @@ export function ProviderModelIdField({
       // 只有用户主动用方向键选中的候选才接管 Enter；目录默认没有高亮项，
       // 手写模型 ID 后回车仍然是原来的保存语义，不会被目录里的第一项顶掉。
       if (event.key === "Enter" && highlightedIndex >= 0) {
-        const highlighted = visibleModelIds[highlightedIndex];
+        const highlighted = visibleEntries[highlightedIndex];
         if (highlighted) {
           event.preventDefault();
-          selectModelId(highlighted);
+          selectEntry(highlighted);
           return;
         }
       }
@@ -196,7 +200,7 @@ export function ProviderModelIdField({
         <div className="overflow-hidden rounded-lg border border-input-border bg-input">
           <CatalogHeader
             status={status}
-            count={visibleModelIds.length}
+            count={visibleEntries.length}
             onRefresh={() => void loadModelIds()}
             refreshLabel={intl.formatMessage({
               id: "settings.modelProvider.modelIdCatalog.refresh",
@@ -219,7 +223,7 @@ export function ProviderModelIdField({
                 {intl.formatMessage({ id: "common.retry" })}
               </Button>
             </div>
-          ) : visibleModelIds.length === 0 ? (
+          ) : visibleEntries.length === 0 ? (
             <CatalogNotice>
               {intl.formatMessage({
                 id:
@@ -237,17 +241,17 @@ export function ProviderModelIdField({
               })}
               className="max-h-56 overflow-y-auto py-1"
             >
-              {visibleModelIds.map((modelId, index) => (
-                <li key={modelId}>
+              {visibleEntries.map((entry, index) => (
+                <li key={entry.id}>
                   <button
                     type="button"
                     id={`${optionIdPrefix}-${index}`}
                     role="option"
                     aria-selected={index === highlightedIndex}
-                    data-model-id-option={modelId}
+                    data-model-id-option={entry.id}
                     // 指针按下不抢输入框焦点，避免刚展开就因失焦关闭列表。
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectModelId(modelId)}
+                    onClick={() => selectEntry(entry)}
                     className={cn(
                       "flex w-full items-center truncate rounded-md px-2 py-1.5 text-left font-mono text-ui-base",
                       // 悬停只做视觉反馈，不改键盘高亮：否则鼠标划过一项后回车会误选它。
@@ -256,7 +260,7 @@ export function ProviderModelIdField({
                         : "text-foreground-subtle hover:bg-hover/60 hover:text-foreground",
                     )}
                   >
-                    <span className="truncate">{modelId}</span>
+                    <span className="truncate">{entry.id}</span>
                   </button>
                 </li>
               ))}

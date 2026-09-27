@@ -12,7 +12,7 @@ import type {
   ProviderSettingsFormModel,
 } from "@/lib/providerSettingsFormTypes.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
-import type { ProviderSettingsModelListResult } from "@zcode/services";
+import type { ProviderModelCatalogEntry, ProviderSettingsModelListResult } from "@zcode/services";
 import type { ProviderApiType } from "@zcode/provider";
 import {
   TID_MODEL_PROVIDER_ADD_MODEL_BUTTON,
@@ -385,6 +385,8 @@ export function ProviderModelsSection({
   const addSavingRef = useRef(false);
   const [addCommitError, setAddCommitError] = useState<string | null>(null);
   const [addModel] = useState(createEmptyModel);
+  /** 目录点选带来的端点能力声明；手写或改动 ID 后必须丢弃，不能套用到别的模型上。 */
+  const [addCatalogEntry, setAddCatalogEntry] = useState<ProviderModelCatalogEntry | null>(null);
   const [addDraftErrorField, setAddDraftErrorField] = useState<
     | "id"
     | "contextWindow"
@@ -403,11 +405,13 @@ export function ProviderModelsSection({
     open: addDialogOpen,
     scopeKey: providerId,
     resolve: resolveAddModelConfig,
+    catalogConfig: addCatalogEntry?.config,
   });
   const { draft: addDraft } = editor;
 
   const openAddDialog = useCallback(() => {
     editor.reset(createEmptyModel());
+    setAddCatalogEntry(null);
     setAddDraftErrorField(null);
     setAddCommitError(null);
     setAddDialogOpen(true);
@@ -415,6 +419,10 @@ export function ProviderModelsSection({
 
   const updateAddDraft = (patch: Partial<ProviderModelDraftValues>) => {
     editor.change(patch);
+    // 手写或改成别的 ID 后，上一次目录点选的能力声明就不再属于当前模型，必须丢弃。
+    if (patch.idValue !== undefined && patch.idValue.trim() !== addCatalogEntry?.id) {
+      setAddCatalogEntry(null);
+    }
     setAddDraftErrorField(null);
   };
 
@@ -577,6 +585,8 @@ export function ProviderModelsSection({
           modelConfigResolutionPending={editor.pending}
           modelDefaultsLoaded={editor.defaultsLoaded}
           onListModelIds={onListModelIds}
+          onCatalogSelect={setAddCatalogEntry}
+          unverifiedFields={editor.unverifiedFields}
           onModelIdBlur={() => {
             void editor.flush().catch(() => undefined);
           }}

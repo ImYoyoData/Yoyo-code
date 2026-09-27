@@ -19,6 +19,7 @@ import {
 import { createServiceDescriptor } from "../descriptors.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
 import { createServiceLogger } from "../logger/serviceLogger.js";
+import type { ProviderModelCatalogEntry } from "./providerModelCapabilities.js";
 
 export type {
   ProviderSettingsProviderView,
@@ -111,7 +112,7 @@ export interface ProviderSettingsModelListError {
 }
 
 export type ProviderSettingsModelListResult =
-  | { readonly success: true; readonly modelIds: readonly string[] }
+  | { readonly success: true; readonly models: readonly ProviderModelCatalogEntry[] }
   | { readonly success: false; readonly error: ProviderSettingsModelListError };
 
 /** 服务层解析出的端点与凭据；拉取器只负责网络与解析，避免各处重复解析配置。 */
