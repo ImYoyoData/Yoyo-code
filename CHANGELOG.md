@@ -19,6 +19,10 @@ This file is maintained by the release workflow; each release prepends a bilingu
     - Precedence is endpoint declaration, then a model-specific catalog rule, then the generic fallback. Models the catalog does cover keep following their curated values and are not pinned.
     - Context window and max output tokens are now pre-filled as real values with a restore button, instead of showing the recommendation as grey placeholder text.
 
+### 维护
+
+- release v3.15.5
+
 
 ## English
 
@@ -33,6 +37,21 @@ Release **v3.15.5** (2026-09-27)
   - Context window and max output tokens are now pre-filled as real values with a restore button, instead of showing the recommendation as grey placeholder text.
   - _中文：_
     - 添加模型时按端点声明回填能力，缺失项提示并写入兜底
+
+### Maintenance
+
+- release v3.15.5
+
+
+---
+
+1 条提交只写了单一语言，因此只显示原文。在提交信息正文里加 `EN:` / `ZH:` 行即可同时生成两种语言。
+
+1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.4...v3.15.5
 
 ## v3.15.4 — 2026-09-24
 
@@ -56,7 +75,6 @@ Release **v3.15.5** (2026-09-27)
   - _EN:_
     - gh release view has no isLatest field, so the summary command aborted the job after the release had already been un-drafted and marked latest. Use only existing fields.
 
-
 ## English
 
 Release **v3.15.4** (2026-09-24)
@@ -77,7 +95,6 @@ Release **v3.15.4** (2026-09-24)
   - _中文：_
     - gh release view 没有 isLatest 字段，导致发布摘要那一步在「转正式 + 标 latest 已成功」之后把作业判失败。改用实际存在的字段。
 
-
 ---
 
 提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.3...v3.15.4
@@ -94,7 +111,6 @@ Release **v3.15.4** (2026-09-24)
   - _EN:_
     - The finalize job has no checkout, so gh could not infer the repository and failed immediately. Pass the repository explicitly, split "un-draft" and "mark latest" into two calls (setting latest while still a draft is rejected), and print the resulting release state into the job summary.
 
-
 ## English
 
 Release **v3.15.3** (2026-09-24)
@@ -104,7 +120,6 @@ Release **v3.15.3** (2026-09-24)
 - The finalize job has no checkout, so gh could not infer the repository and failed immediately. Pass the repository explicitly, split "un-draft" and "mark latest" into two calls (setting latest while still a draft is rejected), and print the resulting release state into the job summary.
   - _中文：_
     - finalize 作业没有 checkout，gh 无法推断仓库而秒失败。现在显式传仓库，并把「转正式」与「标记 latest」拆成两步（草稿状态下设 latest 会被拒绝），同时把发布后的 Release 状态写进作业摘要。
-
 
 ---
 
@@ -122,7 +137,6 @@ Release **v3.15.3** (2026-09-24)
   - _EN:_
     - Pass --publish never to electron-builder. Its default policy is onTagOrDraft, so in CI an existing draft release for the same version made it try to upload during packaging and fail on a missing GH_TOKEN — which broke both platform builds. Release assets are uploaded by the workflow via gh; signing is now enabled only when a certificate is also configured, and each build job records the signing configuration state in its summary.
 
-
 ## English
 
 Release **v3.15.2** (2026-09-24)
@@ -132,7 +146,6 @@ Release **v3.15.2** (2026-09-24)
 - Pass --publish never to electron-builder. Its default policy is onTagOrDraft, so in CI an existing draft release for the same version made it try to upload during packaging and fail on a missing GH_TOKEN — which broke both platform builds. Release assets are uploaded by the workflow via gh; signing is now enabled only when a certificate is also configured, and each build job records the signing configuration state in its summary.
   - _中文：_
     - 给 electron-builder 传 --publish never。其默认策略是 onTagOrDraft，CI 里已存在同名草稿 Release 时它会在打包阶段自行上传并要求 GH_TOKEN，缺 token 直接导致两个平台构建失败。发布资产由工作流用 gh 上传；签名改为「证书与身份都配置齐全才启用」，并在各构建作业摘要里记录签名配置状态。
-
 
 ---
 
@@ -166,7 +179,6 @@ Release **v3.15.2** (2026-09-24)
 
 - release v3.15.1
 
-
 ## English
 
 Release **v3.15.1** (2026-09-24)
@@ -192,7 +204,6 @@ Release **v3.15.1** (2026-09-24)
 ### Maintenance
 
 - release v3.15.1
-
 
 ---
 
