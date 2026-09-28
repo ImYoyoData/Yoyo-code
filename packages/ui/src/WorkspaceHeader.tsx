@@ -29,6 +29,7 @@ export function WorkspaceHeader({
   remoteTarget,
   localWorkspacePath,
   projectName,
+  projectFolderName,
   activeTaskTitle,
   activeTaskChangeSummary,
   activeTaskId,
@@ -71,6 +72,7 @@ export function WorkspaceHeader({
   remoteTarget?: RemoteTarget;
   localWorkspacePath?: string;
   projectName: string;
+  projectFolderName: string;
   activeTaskTitle: string;
   activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
   activeTaskId: string | null;
@@ -163,6 +165,7 @@ export function WorkspaceHeader({
             remoteTarget={remoteTarget}
             localWorkspacePath={localWorkspacePath}
             projectName={projectName}
+            projectFolderName={projectFolderName}
             activeTaskTitle={activeTaskTitle}
             activeTaskChangeSummary={activeTaskChangeSummary}
             activeTaskId={activeTaskId}

@@ -79,6 +79,7 @@ export function WorkspaceHeaderTitleSection({
   remoteTarget,
   localWorkspacePath,
   projectName,
+  projectFolderName,
   activeTaskTitle,
   activeTaskChangeSummary: _activeTaskChangeSummary,
   activeTaskId,
@@ -190,6 +191,10 @@ export function WorkspaceHeaderTitleSection({
   const workspaceContextLabel = showRemoteWorkspaceHostLabel
     ? `${workspaceDisplayLabel} @ ${remoteWorkspaceHostLabel}`
     : workspaceDisplayLabel;
+  // 有用户备注时才补一行真实文件夹名，否则两行显示同样的文字。
+  const showFolderNameUnderTitle =
+    Boolean(projectName.trim()) &&
+    projectName.trim() !== formatRemoteWorkspaceDisplayLabel(projectFolderName, remoteTarget).trim();
   const workspaceBranchLabel = gitSummary.isRepository
     ? resolveGitBranchTriggerLabel({
         headRefType: gitSummary.headRefType,
@@ -424,6 +429,14 @@ export function WorkspaceHeaderTitleSection({
                   <span className="min-w-0 break-words [overflow-wrap:anywhere]">
                     {workspaceContextLabel}
                   </span>
+                  {showFolderNameUnderTitle ? (
+                    <span
+                      data-workspace-folder-name="true"
+                      className="min-w-0 break-words text-ui-sm text-foreground-subtlest [overflow-wrap:anywhere]"
+                    >
+                      {projectFolderName}
+                    </span>
+                  ) : null}
                   {workspaceContextOpen ? (
                     <WorkspaceContextPath
                       workspacePath={workspaceAbsPath}

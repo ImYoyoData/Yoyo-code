@@ -346,6 +346,11 @@ export interface AppSettings {
   lastActiveTabIndex?: number;
   /** 每个 workspace 的最后活跃 taskId，下次打开自动恢复 */
   lastActiveTaskByWorkspace?: Record<string, string>;
+  /**
+   * 用户给 workspace 起的内部备注名，key 为 workspaceKey（workspaceIdentity 优先，回退 workspacePath）。
+   * 只影响界面显示，不改 workspacePath，也不触碰磁盘上的任何文件。
+   */
+  workspaceDisplayNames?: Record<string, string>;
   /** 数据目录的根路径（替代 homedir），默认为 os.homedir()；.yoyo-code/v2 后缀不变 */
   dataBaseDir?: string;
   /** 自动更新安装完成后，等待首次启动展示的版本说明 */
