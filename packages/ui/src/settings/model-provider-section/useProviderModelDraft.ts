@@ -55,10 +55,15 @@ export function useProviderModelDraft({
     [scopeKey],
   );
   const smart = rawDraft.useRecommendedConfigValue !== false;
-  const originalModelId =
+  const baselineModelId =
     model.useRecommendedConfig !== false && !rawDraft.clearPersonalConfigValue
       ? model.modelId
       : undefined;
+  // 目录里点选当前这个模型时必须重新解析：ID 没变会被"无需重算"短路，
+  // 端点声明的能力就进不来，用户会看到选了却没反应。
+  // 是否改名由卡片层按原始 modelId 判断，这里只负责让推荐基线重算一次。
+  const originalModelId =
+    catalogConfig && rawDraft.idValue.trim() === model.modelId ? undefined : baselineModelId;
   const config = useModelConfigResolution({
     open,
     enabled: smart,
@@ -103,10 +108,14 @@ export function useProviderModelDraft({
       apply: (resolution) => apply(modelWithResolution(resolution)),
     });
   };
-  const unverifiedFields = unverifiedCapabilityFields({
-    catalogConfig,
-    hasModelSpecificRule: config.resolution?.hasModelSpecificRule ?? false,
-  });
+  // 解析还没回来时不能判定"未验证"：那只是 1.2 秒防抖窗口，
+  // 连有专用规则的模型也会被误报成缺依据，等解析到达后再显示。
+  const unverifiedFields = config.resolution
+    ? unverifiedCapabilityFields({
+        catalogConfig,
+        hasModelSpecificRule: config.resolution.hasModelSpecificRule,
+      })
+    : [];
   const commit = async () => {
     editGeneration.current += 1;
     const requiresResolution = smart && resolve && rawDraft.idValue.trim() !== originalModelId;

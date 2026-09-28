@@ -122,7 +122,8 @@ export function ProviderModelMetadataDialog({
   // 编辑态仍保留上下文窗口自动聚焦和选中，方便直接修改已有模型配置。
   const shouldFocusModelIdInput = mode === "add";
   const shouldFocusContextWindowInput = mode === "edit";
-  const modelIdCatalogAvailable = mode === "add" && !modelIdReadOnly && Boolean(onListModelIds);
+  // 目录在新增与编辑都可用于挑选模型 ID；内置模型 ID 不可改，不提供目录。
+  const modelIdCatalogAvailable = !modelIdReadOnly && Boolean(onListModelIds);
   const addModelConfigResolutionPending = smart && modelConfigResolutionPending;
   const compositionActiveRef = useRef(false);
   const handleTechnicalInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -270,6 +271,7 @@ export function ProviderModelMetadataDialog({
           </ModelSettingsGroup>
           <ModelEditorAdvanced
             open={open}
+            defaultExpanded={mode === "add"}
             errorField={draftErrorField}
             validationAttempt={validationAttempt}
           >
