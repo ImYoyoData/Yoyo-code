@@ -47,6 +47,12 @@ This file is maintained by the release workflow; each release prepends a bilingu
   - _EN:_
     - The `chore: release vX.Y.Z` commit is release bookkeeping, not a product change.
 
+### 其它变更
+
+- 跳过守卫改按提交者判断，修复人工发布被静默跳过
+  - _EN:_
+    - The skip guard matched on whether the head commit message contains
+
 
 ## English
 
@@ -89,6 +95,17 @@ Release **v3.15.6** (2026-09-28)
 - The `chore: release vX.Y.Z` commit is release bookkeeping, not a product change.
   - _中文：_
     - 过滤发布准备提交，补齐 3.15.6 更新日志
+
+### Other Changes
+
+- The skip guard matched on whether the head commit message contains
+  - _中文：_
+    - 跳过守卫改按提交者判断，修复人工发布被静默跳过
+
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.5...v3.15.6
 
 ## v3.15.5 — 2026-09-27
 
