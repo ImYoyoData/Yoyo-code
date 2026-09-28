@@ -1,5 +1,7 @@
 // GitHubProvider 没有从 electron-updater 包根导出，只能走子路径；该包未声明 exports 字段。
-import { GitHubProvider } from "electron-updater/out/providers/GitHubProvider";
+// 扩展名必须写全：main 是 ESM 产物，tsup 会把依赖保留为外部 import，
+// 而 Node 的 ESM 解析器不补扩展名——省略 .js 会让安装包启动即 ERR_MODULE_NOT_FOUND。
+import { GitHubProvider } from "electron-updater/out/providers/GitHubProvider.js";
 import {
   resolveNewBlockMapUrl,
   resolveOldBlockMapUrl,
