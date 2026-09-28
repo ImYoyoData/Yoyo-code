@@ -34,6 +34,12 @@ const CJK_PATTERN = /[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00
 const I18N_LINE_PATTERN = /^\s*(EN|ZH|英文|中文)\s*[:：]\s*(.*)$/i;
 const SUBJECT_PATTERN =
   /^(?<type>[a-zA-Z]+)(?:\((?<scope>[^)]*)\))?(?<breaking>!)?:\s*(?<subject>.+)$/;
+/**
+ * 发布准备提交本身不是一条"变更"。本仓库的常规流程是在 dev 上先准备好版本号与
+ * 日志再合 main，那条 `chore: release vX.Y.Z` 会留在上一个 tag 之后的区间里，
+ * 写进自己的发布说明就成了「v3.15.6 发布了 v3.15.6」这种自指条目。
+ */
+const RELEASE_COMMIT_PATTERN = /^chore:\s*release\s+v\d/iu;
 
 /** 读取提交区间；NUL/RS 分隔，避免正文换行破坏解析。 */
 export function readCommits({ from, to = "HEAD", cwd = process.cwd() } = {}) {
@@ -44,6 +50,7 @@ export function readCommits({ from, to = "HEAD", cwd = process.cwd() } = {}) {
     .split(RECORD_SEPARATOR)
     .map((record) => record.replace(/^\n+/, "").trimEnd())
     .filter((record) => record.length > 0)
+    .filter((record) => !RELEASE_COMMIT_PATTERN.test((record.split(FIELD_SEPARATOR)[2] ?? "").trim()))
     .map((record) => {
       const [hash, shortHash, subject, body, author, authoredAt] = record.split(FIELD_SEPARATOR);
       return {

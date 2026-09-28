@@ -9,8 +9,25 @@ This file is maintained by the release workflow; each release prepends a bilingu
 
 版本 **v3.15.6**（2026-09-28）
 
+### 新功能
+
+- 侧边栏项目支持重命名内部备注名
+  - _EN:_
+    - The left sidebar project row gains a Rename entry in its More menu. It sets an
+    - Stored as AppSettings.workspaceDisplayNames, a Record keyed by workspaceKey
+    - Clearing the field, or setting it equal to the folder name, deletes the entry
+    - The sidebar row shows the label with the real folder name as a muted second line
+    - The settings snapshot is shared across windows and has listeners, so renaming in
+    - Enter does not confirm while an IME composition is active, matching the existing
+
 ### 问题修复
 
+- 补上 electron-updater 深路径导入的 .js 扩展名
+  - _EN:_
+    - The 3.15.6 installer crashed on startup: the deep import of GitHubProvider was
+    - Development hid it via tsx, and both typecheck and lint passed; only an actual
+    - Verification now builds with tsup and inspects the output: the main bundle emits
+    - Added a guard test scanning the main/host/scheduler ESM entry sources: deep subpath
 - 编辑态也能选模型目录，新增时默认展开能力项
   - _EN:_
     - In add mode the vision/video/PDF, structured output, native web search and reasoning level controls all sit inside a collapsed "advanced" section, while the "no capability info" notice was placed in the basic area and names the input modalities, so the notice pointed at a field the user could not see. The advanced section now defaults to expanded when adding a model; editing an existing model still keeps it collapsed.
@@ -29,8 +46,25 @@ This file is maintained by the release workflow; each release prepends a bilingu
 
 Release **v3.15.6** (2026-09-28)
 
+### Features
+
+- The left sidebar project row gains a Rename entry in its More menu. It sets an
+  - Stored as AppSettings.workspaceDisplayNames, a Record keyed by workspaceKey
+  - Clearing the field, or setting it equal to the folder name, deletes the entry
+  - The sidebar row shows the label with the real folder name as a muted second line
+  - The settings snapshot is shared across windows and has listeners, so renaming in
+  - Enter does not confirm while an IME composition is active, matching the existing
+  - _中文：_
+    - 侧边栏项目支持重命名内部备注名
+
 ### Fixes
 
+- The 3.15.6 installer crashed on startup: the deep import of GitHubProvider was
+  - Development hid it via tsx, and both typecheck and lint passed; only an actual
+  - Verification now builds with tsup and inspects the output: the main bundle emits
+  - Added a guard test scanning the main/host/scheduler ESM entry sources: deep subpath
+  - _中文：_
+    - 补上 electron-updater 深路径导入的 .js 扩展名
 - In add mode the vision/video/PDF, structured output, native web search and reasoning level controls all sit inside a collapsed "advanced" section, while the "no capability info" notice was placed in the basic area and names the input modalities, so the notice pointed at a field the user could not see. The advanced section now defaults to expanded when adding a model; editing an existing model still keeps it collapsed.
   - The provider model catalog is now available while editing, not only when adding. Built-in models keep the field read-only and get no catalog.
   - Picking the current model from the catalog no longer short-circuits resolution, so the endpoint-declared capabilities actually apply instead of appearing to do nothing. Whether this is a rename is still decided by the card layer from the original model id.
