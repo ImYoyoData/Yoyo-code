@@ -43,7 +43,9 @@ This file is maintained by the release workflow; each release prepends a bilingu
 
 ### 维护
 
-- release v3.15.6
+- 过滤发布准备提交，补齐 3.15.6 更新日志
+  - _EN:_
+    - The `chore: release vX.Y.Z` commit is release bookkeeping, not a product change.
 
 
 ## English
@@ -84,18 +86,9 @@ Release **v3.15.6** (2026-09-28)
 
 ### Maintenance
 
-- release v3.15.6
-
-
----
-
-1 条提交只写了单一语言，因此只显示原文。在提交信息正文里加 `EN:` / `ZH:` 行即可同时生成两种语言。
-
-1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
-
----
-
-提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.5...v3.15.6
+- The `chore: release vX.Y.Z` commit is release bookkeeping, not a product change.
+  - _中文：_
+    - 过滤发布准备提交，补齐 3.15.6 更新日志
 
 ## v3.15.5 — 2026-09-27
 
