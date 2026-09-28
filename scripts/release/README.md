@@ -81,6 +81,16 @@ is not implemented yet.
 
 ## 一个容易踩的预期 / One Caveat
 
-应用内自动更新读的是 ZCode endpoint 的更新清单（`/api/v1/releases/electron/manifest`），
-**不是** GitHub Release。把安装包挂到 GitHub 只是提供一个下载渠道；要让已安装的客户端自动升级，
-还需要把同一批产物发布到那份清单所指向的通道。
+应用内自动更新读的就是上面这个 GitHub Release（`latest.yml` / `latest-mac.yml`），
+产物挂在 GitHub 之后已安装的客户端就能自动发现新版本，不需要额外的发布通道。
+
+Incremental (differential) updates additionally depend on two things:
+
+- **`*.blockmap` 必须一起上传。** 工作流里 macOS 与 Windows 的上传 glob 都已包含，漏掉它客户端只能整包下载。
+- **客户端必须用 `DifferentialGitHubProvider`**（`packages/desktop/src/main/differentialGitHubProvider.ts`）。
+  electron-updater 自带的 `GitHubProvider` 拼旧 blockmap 地址时只替换文件名里的版本号，
+  基址仍指向新 Release 的 tag 目录，那个地址必然 404，随后客户端捕获异常退回整包——
+  表现就是「每次更新都全量下载」。
+
+想确认差分是否生效，看客户端日志里的 `Download block maps (old: ..., new: ...)` 一行：
+`old:` 应该指向**旧版本 tag**，而不是新 tag。

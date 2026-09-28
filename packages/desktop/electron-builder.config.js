@@ -775,8 +775,11 @@ export default {
     releaseType: "draft",
     // 不要在这里写 useMultipleRangeRequest：该字段只对 generic provider 合法，
     // 加在 github provider 下会让 electron-builder 配置校验直接失败（打包步骤整体中断）。
-    // 差分下载不受影响——electron-updater 的 GitHubProvider 内部就固定
-    // isUseMultipleRangeRequest=false（GitHub 资产走 S3，不支持 multipart/byteranges），
-    // 仍会下载同一 Release 里的 *.blockmap 按单 Range 拉取差异块。
+    // GitHubProvider 内部固定 isUseMultipleRangeRequest=false（GitHub 资产走 S3，不支持
+    // multipart/byteranges），差分下载按单 Range 顺序拉取差异块，不受这个字段影响。
+    //
+    // 差分能否走通不取决于本段配置，而取决于运行时用的 provider：上游
+    // Provider.getBlockMapFiles 会把旧 blockmap 拼到新 tag 目录下导致 404 并退回整包，
+    // 已在 autoUpdater.ts 换成 DifferentialGitHubProvider 修正。
   },
 };
