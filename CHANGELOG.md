@@ -3,6 +3,47 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.6 — 2026-09-28
+
+## 中文
+
+版本 **v3.15.6**（2026-09-28）
+
+### 问题修复
+
+- 编辑态也能选模型目录，新增时默认展开能力项
+  - _EN:_
+    - In add mode the vision/video/PDF, structured output, native web search and reasoning level controls all sit inside a collapsed "advanced" section, while the "no capability info" notice was placed in the basic area and names the input modalities, so the notice pointed at a field the user could not see. The advanced section now defaults to expanded when adding a model; editing an existing model still keeps it collapsed.
+    - The provider model catalog is now available while editing, not only when adding. Built-in models keep the field read-only and get no catalog.
+    - Picking the current model from the catalog no longer short-circuits resolution, so the endpoint-declared capabilities actually apply instead of appearing to do nothing. Whether this is a rename is still decided by the card layer from the original model id.
+    - The "no capability info" notice no longer appears during the 1.2s debounce window, where models that do have a curated catalog rule were briefly misreported as having no data.
+- 差分更新改用修正后的 provider，避免每次都整包下载
+  - _EN:_
+    - Updates always downloaded the full installer. The build config was fine — the problem is how electron-updater derives the old blockmap URL: it substitutes the old version into the path but keeps the new release tag as the base, so the request goes to `.../download/v<new>/<old filename>.blockmap`, which 404s. The differential installer then catches the error and falls back to a full download on every update.
+    - Verified against the live release: the 3.15.5 blockmap returns 200, the same 3.15.4 filename requested under the 3.15.5 tag returns 404, and the 3.15.4 blockmap under the 3.15.4 tag returns 200.
+    - Switched to a custom provider that also rewrites the tag segment, so both the tag and the filename point at the old release. When the tag does not contain the new version (a fixed tag such as `stable`), it returns null and keeps upstream behaviour rather than guessing an address.
+    - Corrected three stale notes that claimed differential downloads were unaffected and that the update source is the `/api/v1/releases/electron/manifest` endpoint, which no longer exists in the code.
+
+
+## English
+
+Release **v3.15.6** (2026-09-28)
+
+### Fixes
+
+- In add mode the vision/video/PDF, structured output, native web search and reasoning level controls all sit inside a collapsed "advanced" section, while the "no capability info" notice was placed in the basic area and names the input modalities, so the notice pointed at a field the user could not see. The advanced section now defaults to expanded when adding a model; editing an existing model still keeps it collapsed.
+  - The provider model catalog is now available while editing, not only when adding. Built-in models keep the field read-only and get no catalog.
+  - Picking the current model from the catalog no longer short-circuits resolution, so the endpoint-declared capabilities actually apply instead of appearing to do nothing. Whether this is a rename is still decided by the card layer from the original model id.
+  - The "no capability info" notice no longer appears during the 1.2s debounce window, where models that do have a curated catalog rule were briefly misreported as having no data.
+  - _中文：_
+    - 编辑态也能选模型目录，新增时默认展开能力项
+- Updates always downloaded the full installer. The build config was fine — the problem is how electron-updater derives the old blockmap URL: it substitutes the old version into the path but keeps the new release tag as the base, so the request goes to `.../download/v<new>/<old filename>.blockmap`, which 404s. The differential installer then catches the error and falls back to a full download on every update.
+  - Verified against the live release: the 3.15.5 blockmap returns 200, the same 3.15.4 filename requested under the 3.15.5 tag returns 404, and the 3.15.4 blockmap under the 3.15.4 tag returns 200.
+  - Switched to a custom provider that also rewrites the tag segment, so both the tag and the filename point at the old release. When the tag does not contain the new version (a fixed tag such as `stable`), it returns null and keeps upstream behaviour rather than guessing an address.
+  - Corrected three stale notes that claimed differential downloads were unaffected and that the update source is the `/api/v1/releases/electron/manifest` endpoint, which no longer exists in the code.
+  - _中文：_
+    - 差分更新改用修正后的 provider，避免每次都整包下载
+
 ## v3.15.5 — 2026-09-27
 
 ## 中文
