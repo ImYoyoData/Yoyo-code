@@ -24,6 +24,10 @@ This file is maintained by the release workflow; each release prepends a bilingu
     - Switched to a custom provider that also rewrites the tag segment, so both the tag and the filename point at the old release. When the tag does not contain the new version (a fixed tag such as `stable`), it returns null and keeps upstream behaviour rather than guessing an address.
     - Corrected three stale notes that claimed differential downloads were unaffected and that the update source is the `/api/v1/releases/electron/manifest` endpoint, which no longer exists in the code.
 
+### 维护
+
+- release v3.15.6
+
 
 ## English
 
@@ -43,6 +47,21 @@ Release **v3.15.6** (2026-09-28)
   - Corrected three stale notes that claimed differential downloads were unaffected and that the update source is the `/api/v1/releases/electron/manifest` endpoint, which no longer exists in the code.
   - _中文：_
     - 差分更新改用修正后的 provider，避免每次都整包下载
+
+### Maintenance
+
+- release v3.15.6
+
+
+---
+
+1 条提交只写了单一语言，因此只显示原文。在提交信息正文里加 `EN:` / `ZH:` 行即可同时生成两种语言。
+
+1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.5...v3.15.6
 
 ## v3.15.5 — 2026-09-27
 
@@ -64,7 +83,6 @@ Release **v3.15.6** (2026-09-28)
 
 - release v3.15.5
 
-
 ## English
 
 Release **v3.15.5** (2026-09-27)
@@ -82,7 +100,6 @@ Release **v3.15.5** (2026-09-27)
 ### Maintenance
 
 - release v3.15.5
-
 
 ---
 
