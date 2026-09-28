@@ -13,11 +13,17 @@ const ERROR_TARGETS: Partial<Record<ErrorField, string>> = {
 
 export function ModelEditorAdvanced({
   open,
+  defaultExpanded = false,
   errorField,
   validationAttempt,
   children,
 }: {
   open: boolean;
+  /**
+   * 初始是否展开。新增模型时能力项就是这一屏的主体，默认展开；
+   * 编辑既有模型多为定点修改，保持收起。
+   */
+  defaultExpanded?: boolean;
   errorField?: ErrorField | null;
   validationAttempt: number;
   children: ReactNode;
@@ -25,17 +31,17 @@ export function ModelEditorAdvanced({
   const { intl } = useZCodeIntl();
   const ref = useRef<HTMLDivElement>(null);
   const contentId = useId();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   useEffect(() => {
     if (!open) {
-      setExpanded(false);
+      setExpanded(defaultExpanded);
       return;
     }
     // 错误位置随布局变化：最大输出已在基础区；推理等级和映射必须展开才能修正。
     if (errorField && errorField !== "maxOutputTokens" && ERROR_TARGETS[errorField]) {
       setExpanded(true);
     }
-  }, [open, errorField, validationAttempt]);
+  }, [open, defaultExpanded, errorField, validationAttempt]);
   useEffect(() => {
     const selector = errorField && ERROR_TARGETS[errorField];
     if (!open || !selector || (errorField !== "maxOutputTokens" && !expanded)) return;

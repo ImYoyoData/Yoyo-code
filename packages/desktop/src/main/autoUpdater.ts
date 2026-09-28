@@ -15,6 +15,7 @@ import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import pkg, { CancellationToken } from "electron-updater";
 import semver from "semver";
 import { logger } from "./logger.js";
+import { DifferentialGitHubProvider } from "./differentialGitHubProvider.js";
 import { getElectronReleasePlatform } from "./releasePlatform.js";
 const { autoUpdater } = pkg;
 
@@ -756,9 +757,15 @@ async function syncAutoUpdateCheckChannelFromSettings(
 /**
  * 装配更新源。
  *
- * 发布包固定读取 GitHub Release：electron-updater 的 github provider 会取最新 Release 里的
- * `latest.yml` / `latest-mac.yml`，并按同一 Release 里的 `*.blockmap` 走差分下载
- * （`useMultipleRangeRequest: false` → 单 Range 顺序拉取差异块，避免退化成整包下载）。
+ * 发布包固定读取 GitHub Release：electron-updater 会取最新 Release 里的
+ * `latest.yml` / `latest-mac.yml`，再按 `*.blockmap` 走差分下载。
+ *
+ * 这里必须用 DifferentialGitHubProvider 而不是内置 github provider：上游
+ * `Provider.getBlockMapFiles` 只替换文件名里的版本号，旧 blockmap 会去新 Release 的 tag
+ * 目录下找，404 之后 `differentialDownloadInstaller` 捕获异常并整包下载——表现就是
+ * 「每次更新都全量」。GitHubProvider 内部固定 isUseMultipleRangeRequest=false（资产走 S3，
+ * 不支持 multipart/byteranges），单 Range 顺序拉取差异块不受影响。详见 differentialBlockMapUrl.ts。
+ *
  * 开发联调仍可用 `ZCODE_UPDATE_FEED_URL` 指向自建 generic 源，格式与 electron-builder 产物一致。
  */
 function applyUpdaterFeed(options: InitAutoUpdaterOptions): void {
@@ -776,11 +783,10 @@ function applyUpdaterFeed(options: InitAutoUpdaterOptions): void {
   }
 
   autoUpdater.setFeedURL({
-    provider: "github",
+    provider: "custom",
+    updateProvider: DifferentialGitHubProvider,
     owner: GITHUB_RELEASE_OWNER,
     repo: GITHUB_RELEASE_REPO,
-    // GitHub Release 资产支持 Range，但不支持 multipart/byteranges；关闭后仍是差分下载。
-    useMultipleRangeRequest: false,
   });
   logger.info(
     `[auto-update] github release feed applied owner=${GITHUB_RELEASE_OWNER} repo=${GITHUB_RELEASE_REPO} platform=${getElectronReleasePlatform()}`,

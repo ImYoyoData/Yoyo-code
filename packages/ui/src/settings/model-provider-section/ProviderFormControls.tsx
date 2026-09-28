@@ -10,6 +10,10 @@ import { useProviderModelDraft } from "@/settings/model-provider-section/useProv
 import { ProviderModelMetadataDialog } from "@/settings/model-provider-section/ProviderModelMetadataDialog.js";
 import { formatModelContextWindowLabel } from "@/lib/tokenNumberFormat.js";
 import type { ModelConfigResolution, ProviderConfigObject } from "@zcode/provider";
+import type {
+  ProviderModelCatalogEntry,
+  ProviderSettingsModelListResult,
+} from "@zcode/services";
 import { shouldShowModelVisionBadge } from "@/lib/modelVisionBadge.js";
 import { useProviderDetailFeedback } from "@/settings/model-provider-section/ProviderDetailFeedback.js";
 
@@ -27,6 +31,7 @@ export function ModelRowInput({
   onDelete,
   onEnabledChange,
   onTest,
+  onListModelIds,
 }: {
   model: ProviderSettingsFormModel;
   providerId: string;
@@ -35,6 +40,8 @@ export function ModelRowInput({
   providerAccess?: ProviderConfigObject["access"];
   inputTestId?: string;
   deleteTestId?: string;
+  /** 供应商端点的模型目录；编辑态用于改模型 ID 与按端点声明刷新能力。 */
+  onListModelIds?: () => Promise<ProviderSettingsModelListResult>;
   onCommit: (model: ProviderSettingsFormModel, basedOnRevision: number) => void | Promise<void>;
   onResolveDraft?: (
     nextModelId: string,
@@ -55,11 +62,14 @@ export function ModelRowInput({
   const [draftBasedOnRevision, setDraftBasedOnRevision] = useState(settingsRevision);
   // 外部 View 每次投影会产生新对象；编辑事务固定打开时的模型与 revision，不能跟随对象刷新重置。
   const [editingModel, setEditingModel] = useState(model);
+  /** 目录点选带来的端点能力声明；手写或改动 ID 后必须丢弃。 */
+  const [catalogEntry, setCatalogEntry] = useState<ProviderModelCatalogEntry | null>(null);
   const editor = useProviderModelDraft({
     model: editingModel,
     open: metadataDialogOpen,
     scopeKey: providerId,
     resolve: onResolveDraft,
+    catalogConfig: catalogEntry?.config,
   });
   const { draft } = editor;
   const [draftErrorField, setDraftErrorField] = useState<
@@ -74,6 +84,10 @@ export function ModelRowInput({
 
   const updateDraft = (patch: Parameters<typeof editor.change>[0]) => {
     editor.change(patch);
+    // 手写或改成别的 ID 后，上一次目录点选的能力声明就不再属于当前模型，必须丢弃。
+    if (patch.idValue !== undefined && patch.idValue.trim() !== catalogEntry?.id) {
+      setCatalogEntry(null);
+    }
     setDraftErrorField(null);
   };
   const commitDraft = async (): Promise<boolean> => {
@@ -97,6 +111,7 @@ export function ModelRowInput({
   const openMetadataDialog = useCallback(() => {
     setEditingModel(model);
     editor.reset(model);
+    setCatalogEntry(null);
     setDraftErrorField(null);
     setCommitErrorMessage(null);
     setDraftBasedOnRevision(settingsRevision);
@@ -313,6 +328,9 @@ export function ModelRowInput({
           onModelIdBlur={() => {
             void editor.flush().catch(() => undefined);
           }}
+          onListModelIds={onListModelIds}
+          onCatalogSelect={setCatalogEntry}
+          unverifiedFields={editor.unverifiedFields}
           modelIdReadOnly={model.builtin}
         />
         {onDelete ? (
