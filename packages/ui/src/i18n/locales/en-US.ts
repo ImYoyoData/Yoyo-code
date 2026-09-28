@@ -1326,6 +1326,12 @@ const enUS: Record<string, string> = {
   "workspaceSidebar.searchArchivedTasksPlaceholder": "Search archived tasks...",
   "workspaceSidebar.closeTaskSearch": "Close task search",
   "workspaceSidebar.remove": "Remove",
+  "workspaceSidebar.rename": "Rename",
+  "workspaceSidebar.rename.title": "Rename project",
+  "workspaceSidebar.rename.description":
+    "This is only an internal label. It does not change the path, and it does not rename the folder or files on disk.",
+  "workspaceSidebar.rename.input": "Project display name",
+  "workspaceSidebar.rename.folderName": "Actual folder name",
   "workspaceSidebar.removeRunningWorkspace.title": "Remove a running project?",
   "workspaceSidebar.removeRunningWorkspace.description":
     "This project still has a running chat or Agent. Removing it will stop and release the related runtime state, but task history will not be deleted.",

@@ -17,6 +17,7 @@ import { isWorkspaceReadOnly, isWorkspaceTab } from "@/store/tabStore.js";
 import type { TaskChatMessage as TestChatMessage } from "@/lib/taskChatMessageTypes.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
+import { useWorkspaceDisplayNames } from "@/hooks/useWorkspaceDisplayNames.js";
 import { getPathLeaf } from "@/lib/path.js";
 import {
   addPluginStoreOpenListener,
@@ -597,7 +598,13 @@ export function App({
     },
     [handleOpenTreemapping, workspaceReadOnlyReason],
   );
-  const projectName = getPathLeaf(workspaceAbsPath);
+  // 顶部标题跟随用户备注名；这里只传未加 SSH 后缀的原始名，后缀由 header 统一装饰，
+  // 否则 formatRemoteWorkspaceDisplayLabel 会被调用两次。
+  const { displayNameFor: workspaceDisplayNameFor } = useWorkspaceDisplayNames();
+  const projectFolderName = getPathLeaf(workspaceAbsPath);
+  const projectName =
+    workspaceDisplayNameFor({ workspacePath: workspaceAbsPath, workspaceIdentity }) ||
+    projectFolderName;
   const handleOpenTaskFind = useCallback(() => {
     // Cmd/Ctrl+F 语义是“查找对话”，之前误复用了 Cmd/Ctrl+P 的文件搜索入口，
     // 导致用户在 quick pick 里点 Find 或按快捷键时会跳到打开文件。这里拆成独立状态，避免影响文件搜索链路。
@@ -1195,6 +1202,7 @@ export function App({
         recentClosedSidePaneTabs={recentClosedSidePaneTabs}
         shellPanelIds={shellPanelIds}
         projectName={projectName}
+        projectFolderName={projectFolderName}
         workspaceTabs={workspaceTabs}
         activeTaskId={activeTaskId}
         sidePaneOwnerId={sidePaneOwnerId}

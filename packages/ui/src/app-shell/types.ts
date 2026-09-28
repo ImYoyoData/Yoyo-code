@@ -160,6 +160,8 @@ export interface WorkspaceShellLayoutProps extends Omit<AppProps, "baseFeedbackS
   recentClosedSidePaneTabs: RecentClosedSidePaneTab[];
   shellPanelIds: string[];
   projectName: string;
+  /** 真实文件夹名；与 projectName 不同时用于在标题下方补一行淡色原名。 */
+  projectFolderName: string;
   workspaceTabs: Array<{
     workspacePath: string;
     label: string;

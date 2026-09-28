@@ -28,6 +28,8 @@ export interface WorkspaceHeaderTitleSectionProps {
   remoteTarget?: RemoteTarget;
   localWorkspacePath?: string;
   projectName: string;
+  /** 真实文件夹名；与 projectName 不同时用于在项目名下方补一行淡色原名。 */
+  projectFolderName: string;
   activeTaskTitle: string;
   activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
   activeTaskId: string | null;

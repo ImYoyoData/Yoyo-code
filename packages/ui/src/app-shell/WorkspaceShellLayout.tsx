@@ -254,6 +254,7 @@ export const WorkspaceShellLayout = memo(function WorkspaceShellLayoutComponent(
   sidePaneState,
   recentClosedSidePaneTabs,
   projectName,
+  projectFolderName,
   workspaceTabs,
   activeTaskId,
   sidePaneOwnerId,
@@ -1699,6 +1700,7 @@ export const WorkspaceShellLayout = memo(function WorkspaceShellLayoutComponent(
                           remoteTarget={workspaceRemoteTarget}
                           localWorkspacePath={workspaceLocalPathForRemoteMcpSync}
                           projectName={projectName}
+                          projectFolderName={projectFolderName}
                           activeTaskTitle={activeTaskTitle}
                           activeTaskChangeSummary={activeTaskChangeSummary}
                           activeTaskId={activeTaskId}
