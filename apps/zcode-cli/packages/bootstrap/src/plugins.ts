@@ -220,6 +220,8 @@ interface ValidateZCodePluginOptions extends ResolveZCodePluginsOptions {
 interface DescribeZCodePluginOptions extends ResolveZCodePluginsOptions {
   marketplace: string;
   pluginName: string;
+  /** 只有懒加载 manifest 需要写锁；已缓存或已安装的只读路径不进锁。 */
+  withWriteLock?: <T>(write: () => Promise<T>) => Promise<T>;
 }
 
 export interface ZCodePluginInstallData {
@@ -1011,6 +1013,7 @@ export async function describeZCodePlugin(
     marketplace: options.marketplace,
     name: options.pluginName,
     storageRoot: pluginStorageRoot,
+    ...(options.withWriteLock ? { withWriteLock: options.withWriteLock } : {}),
   });
 }
 

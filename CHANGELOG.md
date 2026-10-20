@@ -3,6 +3,59 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.15.7 — 2026-10-20
+
+## 中文
+
+版本 **v3.15.7**（2026-10-20）
+
+### 问题修复
+
+- 对话区最小宽度从 35% 降到 25%
+  - _EN:_
+    - With the side pane open the horizontal group is [conversation, browser]; the conversation column's 35% floor stopped it from narrowing on smaller windows and squeezed the browser/code pane. Lowered to 25%. With the side pane closed there is only one panel, so the floor does not apply.
+- 重命名后「更多」菜单不收起
+  - _EN:_
+    - The rename menu item called preventDefault in onSelect. Radix only closes a DropdownMenuItem when the select event is not prevented, so the More menu stayed open after the rename dialog was dismissed. The Remove item has the same pattern, but it removes the whole row afterwards, which is why the defect never surfaced there.
+- 移植上游同步提交里的三处修复
+  - _EN:_
+    - Ported three independent fixes from upstream 3c5b227; the side-pane-full-view feature from the same sync was not ported.
+    - Bash output now goes to a private directory under os.tmpdir() when the adapter is given bashOutputTempDir, falling back to the previous storageRoot only for the documented set of preparation errors. This stops directory searches from reading the output file being written and writing results back into it.
+    - Plugin describe no longer holds the storage lock for read-only paths; the lock is taken only when a missing manifest actually has to be written. Plugin describe/list/overview requests are handled immediately instead of queuing behind installs, so details and new tabs no longer hang behind a download.
+    - A quota-class stop failure no longer freezes the workflow concurrency bucket for hours. Stop-set failures now only end the attempt; a bucket that was merely cooling down is no longer inherited by the resumed run.
+
+### 其它变更
+
+- 跳过守卫改按提交者判断，修复人工发布被静默跳过
+  - _EN:_
+    - The skip guard matched on the head commit message, which cannot tell a release commit produced by the pipeline apart from one a human pushed to main. Since this repo prepares the version and changelog on dev and merges to main, pushing `chore: release vX.Y.Z` straight to main had the release silently skipped. Only commits authored by github-actions[bot] are skipped now.
+
+
+## English
+
+Release **v3.15.7** (2026-10-20)
+
+### Fixes
+
+- With the side pane open the horizontal group is [conversation, browser]; the conversation column's 35% floor stopped it from narrowing on smaller windows and squeezed the browser/code pane. Lowered to 25%. With the side pane closed there is only one panel, so the floor does not apply.
+  - _中文：_
+    - 对话区最小宽度从 35% 降到 25%
+- The rename menu item called preventDefault in onSelect. Radix only closes a DropdownMenuItem when the select event is not prevented, so the More menu stayed open after the rename dialog was dismissed. The Remove item has the same pattern, but it removes the whole row afterwards, which is why the defect never surfaced there.
+  - _中文：_
+    - 重命名后「更多」菜单不收起
+- Ported three independent fixes from upstream 3c5b227; the side-pane-full-view feature from the same sync was not ported.
+  - Bash output now goes to a private directory under os.tmpdir() when the adapter is given bashOutputTempDir, falling back to the previous storageRoot only for the documented set of preparation errors. This stops directory searches from reading the output file being written and writing results back into it.
+  - Plugin describe no longer holds the storage lock for read-only paths; the lock is taken only when a missing manifest actually has to be written. Plugin describe/list/overview requests are handled immediately instead of queuing behind installs, so details and new tabs no longer hang behind a download.
+  - A quota-class stop failure no longer freezes the workflow concurrency bucket for hours. Stop-set failures now only end the attempt; a bucket that was merely cooling down is no longer inherited by the resumed run.
+  - _中文：_
+    - 移植上游同步提交里的三处修复
+
+### Other Changes
+
+- The skip guard matched on the head commit message, which cannot tell a release commit produced by the pipeline apart from one a human pushed to main. Since this repo prepares the version and changelog on dev and merges to main, pushing `chore: release vX.Y.Z` straight to main had the release silently skipped. Only commits authored by github-actions[bot] are skipped now.
+  - _中文：_
+    - 跳过守卫改按提交者判断，修复人工发布被静默跳过
+
 ## v3.15.6 — 2026-09-28
 
 ## 中文
