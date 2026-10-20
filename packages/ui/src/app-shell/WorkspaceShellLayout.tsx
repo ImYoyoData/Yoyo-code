@@ -1648,7 +1648,9 @@ export const WorkspaceShellLayout = memo(function WorkspaceShellLayoutComponent(
           >
             <ResizablePanel
               id="conversation-column"
-              minSize="35%"
+              // 侧栏打开时对话列可以继续收窄，给右侧 browser / 代码视图让出更多空间。
+              // 只有这个横向分组会约束对话区宽度；关闭侧栏时只有一块面板，不受影响。
+              minSize="25%"
               defaultSize={isSidePaneVisible ? "52%" : undefined}
             >
               <ResizablePanelGroup
