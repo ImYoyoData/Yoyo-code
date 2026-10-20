@@ -33,10 +33,12 @@ concurrency:
 
 jobs:
   prepare:
-    # 发布提交本身不再触发新一轮发布。
+    # 只跳过流水线自己产生的发布提交，避免自激循环。
+    # 不能按提交信息判断：仓库的常规流程是在 dev 上准备好版本号与日志再合 main，
+    # 人工把 `chore: release vX.Y.Z` 推到 main 时，发布会被静默跳过。
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      !contains(github.event.head_commit.message, 'chore: release v')
+      github.event.head_commit.author.username != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
