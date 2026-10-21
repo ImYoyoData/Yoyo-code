@@ -1,7 +1,7 @@
 import { accessSync, chmodSync, constants, existsSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir, release } from "node:os";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { Emitter, type Event } from "@zcode/rpc";
 import type { IPty } from "node-pty";
 import type { ISettingService } from "../setting/setting.js";
@@ -231,6 +231,53 @@ function resolveTerminalEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.Proces
   return nextEnv;
 }
 
+/**
+ * PTY 尺寸下限。
+ *
+ * 传 0 或个位数给 ConPTY 会让部分 shell 在启动期直接崩溃（PowerShell 7.6 的
+ * UpdatesNotification 在控制台过窄时 PadRight 收到负数而 FailFast）。正常布局下
+ * 面板尺寸远大于这里，只有极端拖拽或测量竞态才会触底；此时宁可让 PTY 用一个
+ * 可用的最小几何，也不要把病态值交给 shell。
+ */
+const MIN_PTY_COLS = 20;
+const MIN_PTY_ROWS = 3;
+
+export function clampTerminalSize(params: { cols: number; rows: number }): {
+  cols: number;
+  rows: number;
+} {
+  const cols = Number.isFinite(params.cols) ? Math.floor(params.cols) : MIN_PTY_COLS;
+  const rows = Number.isFinite(params.rows) ? Math.floor(params.rows) : MIN_PTY_ROWS;
+  return {
+    cols: Math.max(MIN_PTY_COLS, cols),
+    rows: Math.max(MIN_PTY_ROWS, rows),
+  };
+}
+
+/**
+ * PowerShell 7.6.x 的中文更新提示会在启动期 FailFast。
+ *
+ * `UpdatesNotification.ShowUpdateNotification` 用本地化文案的行长算补位宽度：
+ * `line1Length - line2Length + releaseTag.Length`。中文模板第 2/3 行比第 1 行长，
+ * 结果是负数，`PadRight` 抛 ArgumentOutOfRangeException 后整个进程终止。
+ * 这与终端宽度无关，纯粹是文案排版。
+ *
+ * 它提供 `POWERSHELL_UPDATECHECK=Off` 关闭该提示。只在用户没显式设置时补上，
+ * 并且只作用于内置终端，不改宿主进程的全局环境。
+ */
+export function applyShellEnvironmentWorkarounds(
+  shell: string,
+  env: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  if (process.platform !== "win32" || !/^pwsh(\.exe)?$/iu.test(basename(shell))) {
+    return env;
+  }
+  if (env.POWERSHELL_UPDATECHECK !== undefined) {
+    return env;
+  }
+  return { ...env, POWERSHELL_UPDATECHECK: "Off" };
+}
+
 function spawnTerminalProcess(params: {
   nodePty: NodePtyModule;
   shell: string;
@@ -239,7 +286,8 @@ function spawnTerminalProcess(params: {
   cwd: string;
   env: NodeJS.ProcessEnv;
 }): IPty {
-  const { nodePty, shell, cols, rows, cwd, env } = params;
+  const { nodePty, shell, cols, rows, cwd } = params;
+  const env = applyShellEnvironmentWorkarounds(shell, params.env);
 
   if (process.platform !== "win32") {
     return nodePty.spawn(shell, [], {
@@ -378,11 +426,12 @@ export function createTerminalService(dependencies: {
 
       let p: IPty;
       try {
+        const size = clampTerminalSize({ cols: params.cols, rows: params.rows });
         p = spawnTerminalProcess({
           nodePty,
           shell,
-          cols: params.cols,
-          rows: params.rows,
+          cols: size.cols,
+          rows: size.rows,
           cwd,
           env,
         });
@@ -417,7 +466,8 @@ export function createTerminalService(dependencies: {
     },
 
     async resize(params: { id: string; cols: number; rows: number }): Promise<void> {
-      getTerminal(params.id).pty.resize(params.cols, params.rows);
+      const size = clampTerminalSize({ cols: params.cols, rows: params.rows });
+      getTerminal(params.id).pty.resize(size.cols, size.rows);
     },
 
     async dispose(params: { id: string }): Promise<void> {

@@ -38,6 +38,15 @@ import {
 const DEFAULT_TERMINAL_FONT_FAMILY =
   "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Cascadia Mono', 'JetBrains Mono', 'MesloLGS NF', 'Hack Nerd Font', monospace";
 const TERMINAL_RESIZE_DRAG_THROTTLE_MS = 300;
+/**
+ * 首次创建 PTY 前做 fit 所需的最小面板尺寸。
+ *
+ * 面板刚挂载（或处于展开动画）时 clientWidth 可能只有几十像素，按它 fit 会把 PTY
+ * 创建成个位数到二十几列。启动期只有一次，事后 resize 无法补救那些按错误宽度输出的内容。
+ * 低于该尺寸宁可先用 xterm 默认的 80x24 起 PTY，等面板撑开后再 resize。
+ */
+const MIN_INITIAL_FIT_WIDTH_PX = 320;
+const MIN_INITIAL_FIT_HEIGHT_PX = 120;
 const TERMINAL_INPUT_FALLBACK_RECENT_DATA_MS = 150;
 const TERMINAL_INPUT_FALLBACK_KEYDOWN_INPUT_MS = 40;
 const TERMINAL_INPUT_FALLBACK_FLUSH_DELAY_MS = 150;
@@ -416,7 +425,11 @@ export function TerminalSession({
       term.open(hostEl);
 
       let initialTerminalSize: TerminalSize | null = null;
-      if (isVisibleRef.current && hostEl.clientWidth > 0 && hostEl.clientHeight > 0) {
+      if (
+        isVisibleRef.current &&
+        hostEl.clientWidth >= MIN_INITIAL_FIT_WIDTH_PX &&
+        hostEl.clientHeight >= MIN_INITIAL_FIT_HEIGHT_PX
+      ) {
         try {
           resizeRequestStatsRef.current.fit += 1;
           fitAddon.fit();
@@ -544,6 +557,15 @@ export function TerminalSession({
 
       // 创建 PTY（异步）
       const initialCreateSize = initialTerminalSize ?? { cols: term.cols, rows: term.rows };
+      // 启动期崩溃（PowerShell 在窄控制台 FailFast）只能靠这条日志回溯真实几何。
+      logger.lifecycle.info("[Terminal] create PTY", {
+        cols: initialCreateSize.cols,
+        rows: initialCreateSize.rows,
+        fitted: initialTerminalSize !== null,
+        hostWidth: hostEl.clientWidth,
+        hostHeight: hostEl.clientHeight,
+        terminalTabId: sessionId,
+      });
       void services.terminalService
         .create({ cols: initialCreateSize.cols, rows: initialCreateSize.rows, cwd })
         .then(({ id, shell, fontFamily, fontSize, theme, fontFamilySource, windowsPty }) => {
@@ -782,7 +804,11 @@ export function TerminalSession({
     term.loadAddon(new ClipboardAddon());
     term.open(el);
     let initialTerminalSize: TerminalSize | null = null;
-    if (isVisibleRef.current && el.clientWidth > 0 && el.clientHeight > 0) {
+    if (
+      isVisibleRef.current &&
+      el.clientWidth >= MIN_INITIAL_FIT_WIDTH_PX &&
+      el.clientHeight >= MIN_INITIAL_FIT_HEIGHT_PX
+    ) {
       try {
         // side pane 终端挂载时如果先用 xterm 默认列数创建 PTY，
         // 启动输出会在随后 fit/resize 时按错误宽度重排，zsh 可能显示反白的 PROMPT_EOL_MARK。
@@ -882,6 +908,14 @@ export function TerminalSession({
 
     // 优先使用 workspace 路径作为 terminal 工作目录，未设置时后端回退到 HOME
     const initialCreateSize = initialTerminalSize ?? { cols: term.cols, rows: term.rows };
+    logger.lifecycle.info("[Terminal] create PTY", {
+      cols: initialCreateSize.cols,
+      rows: initialCreateSize.rows,
+      fitted: initialTerminalSize !== null,
+      hostWidth: el.clientWidth,
+      hostHeight: el.clientHeight,
+      terminalTabId: sessionId,
+    });
     terminalService
       .create({ cols: initialCreateSize.cols, rows: initialCreateSize.rows, cwd })
       .then(({ id, shell, fontFamily, fontSize, theme, fontFamilySource, windowsPty }) => {
