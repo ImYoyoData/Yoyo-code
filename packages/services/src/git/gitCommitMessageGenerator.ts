@@ -178,10 +178,19 @@ export class GitCommitMessageGenerator {
       if (error instanceof GitCommitMessageGenerationError) {
         throw error;
       }
+      const detail = error instanceof Error ? error.message : String(error);
+      // 底层原因写进 host 日志（渲染层在生产构建下不落盘），
+      // 同时带在错误消息里，用户不必翻日志就能判断是模型、凭据还是网络问题。
+      this.options.logger?.error(undefined, "Git 提交消息模型请求失败", {
+        workspacePath: params.workspacePath,
+        providerId: params.selection.providerId,
+        modelId: params.selection.modelId,
+        detail,
+      });
       throw new GitCommitMessageGenerationError(
-        "模型请求失败。",
+        detail ? `模型请求失败：${detail}` : "模型请求失败。",
         "request-failed",
-        error instanceof Error ? error.message : String(error),
+        detail,
       );
     }
   }

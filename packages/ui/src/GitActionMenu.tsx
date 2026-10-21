@@ -1071,11 +1071,13 @@ export function GitActionMenu({
         error: message,
       });
       // 把真实原因带给用户：只显示"失败"无法区分是模型不可用、请求失败还是输出不合规。
+      // 文案模板自带句号，错误消息也常带一个，去掉尾部标点避免出现「失败。。」。
+      const detail = message.replace(/[。.!！]+$/u, "").trim();
       setCommitError(
-        message
+        detail
           ? intl.formatMessage(
               { id: "git.actionMenu.commitDialog.error.generateFailedDetail" },
-              { error: message },
+              { error: detail },
             )
           : intl.formatMessage({
               id: "git.actionMenu.commitDialog.error.generateFailed",
