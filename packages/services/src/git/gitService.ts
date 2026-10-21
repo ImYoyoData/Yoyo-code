@@ -295,6 +295,7 @@ export function createGitService(options?: {
         files,
         diffs,
         ...(params.conversationContext ? { conversationContext: params.conversationContext } : {}),
+        ...(params.selection ? { selection: params.selection } : {}),
       });
     },
 

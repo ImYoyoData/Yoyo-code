@@ -65,6 +65,8 @@ export class GitCommitMessageGenerator {
     files: readonly GitFileChange[];
     diffs: readonly GitDiffResult[];
     conversationContext?: GitCommitMessageConversationContext;
+    /** 当前会话选中的模型；提供时优先使用，避免退回到 Host 的全局默认模型。 */
+    selection?: ZCodeWorkspaceGenerateTextParams["selection"];
   }): Promise<{ message: string; providerId: string; model: string }> {
     const selection = await this.resolveCurrentModel(params);
     const prompt = buildGitCommitMessageGenerationPrompt({
@@ -120,7 +122,20 @@ export class GitCommitMessageGenerator {
   private async resolveCurrentModel(params: {
     workspacePath: string;
     workspaceIdentity?: string;
+    selection?: ZCodeWorkspaceGenerateTextParams["selection"];
   }): Promise<ZCodeWorkspaceGenerateTextParams["selection"]> {
+    // 会话里已经选好的模型就是用户当前在用的模型，直接采用；
+    // 只有调用方没给（例如从其它入口触发）才读 Host 的全局默认。
+    const requestedProviderId = params.selection?.providerId?.trim();
+    const requestedModelId = params.selection?.modelId?.trim();
+    if (requestedProviderId && requestedModelId) {
+      return {
+        providerId: requestedProviderId,
+        modelId: requestedModelId,
+        ...(params.selection?.options ? { options: { ...params.selection.options } } : {}),
+      };
+    }
+
     const currentModel = await this.options.currentModelProvider.readCurrentModel({
       workspacePath: params.workspacePath,
       workspaceIdentity: params.workspaceIdentity,

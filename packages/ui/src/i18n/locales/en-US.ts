@@ -933,6 +933,8 @@ const enUS: Record<string, string> = {
     "Enter or generate a commit message before committing.",
   "git.actionMenu.commitDialog.error.generateFailed":
     "Commit message generation failed. Try again or enter one manually.",
+  "git.actionMenu.commitDialog.error.generateFailedDetail":
+    "Commit message generation failed: {error}. Check that the current model is usable, or enter a message manually.",
   "git.actionMenu.commitDialog.error.requestFailed": "Commit failed: {error}",
   "git.actionMenu.commitDialog.error.pushAfterCommitFailed": "Committed, but push failed: {error}",
   "git.actionMenu.commitDialog.toast.success": "Committed the current changes",
