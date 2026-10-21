@@ -118,6 +118,25 @@ export function readProviderModelEntryId(candidate: unknown): string {
  * 保留供应商返回顺序：目录顺序本身就是供应商的推荐排序。
  * 同一个 modelId 重复出现时保留首条，避免后出现的空壳条目抹掉已解析出的能力。
  */
+/**
+ * 用 models.dev 的档位覆盖目录条目的推理等级取值，保留原有 map。
+ *
+ * 只覆盖 values：models.dev 不给参数名，请求里写什么字段仍由内置目录的家族 map 决定。
+ */
+export function withReasoningLevelValues(
+  config: ModelConfigObject,
+  values: readonly string[],
+): ModelConfigObject {
+  if (values.length === 0) return config;
+  const optionSpecs: Record<string, unknown> = { ...config.optionSpecs };
+  const existing = optionSpecs.reasoningLevel;
+  optionSpecs.reasoningLevel = {
+    ...(typeof existing === "object" && existing !== null ? existing : {}),
+    values: [...values],
+  };
+  return { ...config, optionSpecs } as ModelConfigObject;
+}
+
 export function parseProviderModelCatalog(payload: unknown): readonly ProviderModelCatalogEntry[] {
   const entries: ProviderModelCatalogEntry[] = [];
   const seen = new Set<string>();

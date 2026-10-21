@@ -35,6 +35,42 @@ import {
 import { isModelStreamIdleTimeoutError } from "./stream-idle-timeout.js";
 
 const PROVIDER_BUSINESS_ERROR_WRAPPER_CODE = "PROVIDER_BUSINESS_ERROR";
+const REJECTION_DETAIL_MAX_CHARS = 240;
+
+/**
+ * 从 APICallError 里提取 provider 的拒绝原因。
+ *
+ * 常见网关会在错误体里给出 `error.message` / `message` / `detail`，
+ * 只保留一小段可读文本，避免把整段 HTML 或 JSON 塞进用户提示。
+ */
+function readProviderRejectionDetail(error: unknown): string | undefined {
+  const body = getApiCallResponseBody(error);
+  const candidates: unknown[] = [];
+  if (typeof body === "string") {
+    candidates.push(body);
+  } else if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    const nested = record.error;
+    if (typeof record.message === "string") candidates.push(record.message);
+    if (typeof record.detail === "string") candidates.push(record.detail);
+    if (typeof record.msg === "string") candidates.push(record.msg);
+    if (nested && typeof nested === "object") {
+      const nestedRecord = nested as Record<string, unknown>;
+      candidates.push(nestedRecord.message, nestedRecord.msg, nestedRecord.detail);
+    } else {
+      candidates.push(nested);
+    }
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const text = candidate.replace(/\s+/gu, " ").trim();
+    if (!text || text.startsWith("<")) continue;
+    return text.length > REJECTION_DETAIL_MAX_CHARS
+      ? `${text.slice(0, REJECTION_DETAIL_MAX_CHARS)}…`
+      : text;
+  }
+  return undefined;
+}
 
 export interface ClassifiedModelFailure {
   code: ModelErrorCodeType;
@@ -217,13 +253,17 @@ export function classifyModelFailure(
 
   if (statusCode === 400 || statusCode === 422) {
     const contextExceeded = isContextExceededFailure(unwrapped);
+    // 400/422 只有一句 "rejected" 无法排查：把 provider 自己给的说明带出来。
+    const rejectionDetail = contextExceeded ? undefined : readProviderRejectionDetail(unwrapped);
     return {
       code: contextExceeded
         ? ModelErrorCode.ModelContextExceeded
         : ModelErrorCode.InvalidModelRequest,
       message: contextExceeded
         ? "Model request exceeded the provider context window."
-        : "Provider rejected the model request.",
+        : rejectionDetail
+          ? `Provider rejected the model request: ${rejectionDetail}`
+          : "Provider rejected the model request.",
       reason: contextExceeded
         ? ModelFailureReasonValue.ContextExceeded
         : ModelFailureReasonValue.InvalidRequest,

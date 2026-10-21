@@ -17,7 +17,9 @@
 | 目录能力值的落盘方式 | 写入该模型的个人配置（smart 规则），不动 schema、不需迁移 |
 | 无依据时的行为 | 该字段不产出，沿用目录值；不允许凭模型名猜测 |
 | 仍然没有依据时 | 提示用户确认，并把默认兜底参数写进个人配置 |
-| 推理等级 map | 仅在端点声明 `reasoning_effort` 时推导 |
+| 推理等级取值 | models.dev 的 `reasoning_options`（按网关精确匹配），缺口用端点声明与目录 |
+| 推理等级 map | 来自内置目录的家族规则；models.dev 只给取值，不给参数名 |
+| models.dev 的适用范围 | 仅已知网关；自定义网关（如 `commandcode`）无覆盖 |
 
 ## 状态所有者
 
@@ -39,11 +41,23 @@
 2. 内置规则目录的 `modelApiRules`
 3. 内置规则目录的 `providerSiteRules`
 4. **端点 `/models` 声明的能力值**
-5. 内置规则目录的 `templateModelRules` / `builtinProviderModelRules`（精确身份）
-6. 个人配置（smart 规则）
-7. 个人配置（manual 规则）
+5. **models.dev 的 `reasoning_options`（仅推理等级取值）**
+6. 内置规则目录的 `templateModelRules` / `builtinProviderModelRules`（精确身份）
+7. 个人配置（smart 规则）
+8. 个人配置（manual 规则）
 
-第 4 层压过全部正则规则：正则规则是人工维护的通配推断，端点声明是该 Provider 对这个模型的实际承诺。个人配置仍在最上层，用户的手工编辑永远优先。
+端点声明压过全部正则规则：正则规则是人工维护的通配推断，端点声明是该 Provider 对这个模型的实际承诺。models.dev 紧随其后，因为它按网关记录，比模型名通配更具体，但仍可能是社区维护的二手数据。个人配置仍在最上层，用户的手工编辑永远优先。
+
+## models.dev 的边界
+
+models.dev 的每条模型记录带 `reasoning_options`，本次只消费它来补推理等级取值：
+
+- **按网关键控**：同一 `canonical_model_id` 在不同网关的允许集合不同（实测 `deepseek-v4.1-flash` 分别出现 `[low,high]`、`[low,high,max]`、`[none,minimal,low,medium,high]`）。因此只用**精确身份**匹配：Base URL 完全相等优先，其次 `providerId`，再次 `templateId`。**不做 host 模糊匹配**——三个 `opencode-*` 模板共享同一 host，模糊匹配会串线。
+- **只给取值，不给参数名**：`effort` 给出档位集合，但请求里到底写 `reasoning_effort` 还是 `reasoning.effort`，仍由内置目录的家族 `map` 决定。因此只覆盖 `values`，不覆盖 `map`。
+- **`toggle` 类型**只说明"支持开关"，取值固定为 `["disabled","enabled"]`，参数名同样来自家族 `map`。
+- **`budget_tokens` 本次不消费**：它是数值区间，现有 `values: string[]` 无法表达，继续使用目录里的伪档位并标记为未验证。
+- **自定义网关无覆盖**：`commandcode` 这类不在 models.dev 的 provider 列表中，匹配不到就不补，不做猜测。
+- 索引精简后缓存在 `{v2}/runtime/model-catalog/models-dev.json`，TTL 24h；下载走 Host 网络传输（Proxy / 企业 CA / no_proxy 生效）。
 
 ## 推导边界
 
@@ -101,7 +115,8 @@
 
 ## 非目标
 
-- 不引入 models.dev / LiteLLM 等外部能力目录，也不恢复已退役的 `models-dev` 来源标记。
+- 不恢复已退役的 `models-dev` 来源标记；本次只把 models.dev 当作推理等级取值的补充源，不用它替代 Provider 目录。
+- 不做主动探测（会向 Provider 发真实请求），不扩展数值型推理预算。
 - 不为 `supportsAudio` 增加设置页入口；它随目录或端点声明生效，界面不暴露编辑。
 - 不改变 `ModelConfigObject` 的 schema 形状，也不引入新的持久化层级。
 - 不追求覆盖全部模型：端点没声明就是没有依据，宁可提示用户确认也不编造能力值。

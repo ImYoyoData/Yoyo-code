@@ -13,6 +13,7 @@ import type {
   GitCommitMessageConversationContext,
   GitIdentity,
   GitRepositorySummary,
+  ModelSelection,
   ZCodeTaskChangeSummary,
 } from "@zcode/shared";
 import { cn } from "@/components/lib/utils.js";
@@ -68,6 +69,11 @@ interface GitActionMenuProps {
   gitSummary: GitRepositorySummary;
   activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
   commitMessageConversationContext?: GitCommitMessageConversationContext | null;
+  /**
+   * 取当前会话在 Composer 里选中的模型。用回调而不是传值：
+   * 生成发生在点击时，回调能拿到最新选择，也不会把草稿状态提升成 props 引起整树重渲染。
+   */
+  resolveModelSelection?: () => ModelSelection | undefined;
   onRefreshGit: () => void;
   className?: string;
   triggerIconOnly?: boolean;
@@ -825,6 +831,7 @@ export function GitActionMenu({
   gitSummary,
   activeTaskChangeSummary = null,
   commitMessageConversationContext = null,
+  resolveModelSelection,
   onRefreshGit,
   className,
   triggerIconOnly = false,
@@ -999,6 +1006,8 @@ export function GitActionMenu({
         conversationMessageCount: commitMessageConversationContext?.messages.length ?? 0,
       });
 
+      // 辅助调用沿用会话当前选中的模型；取不到才让 Host 回退到全局默认。
+      const selection = resolveModelSelection?.();
       const result = await gitService.generateCommitMessage({
         workspacePath,
         ...(workspaceIdentity ? { workspaceIdentity } : {}),
@@ -1008,6 +1017,7 @@ export function GitActionMenu({
         ...(commitMessageConversationContext
           ? { conversationContext: commitMessageConversationContext }
           : {}),
+        ...(selection ? { selection } : {}),
       });
 
       logger.info("[GitActionMenu] 提交消息生成成功", {
@@ -1023,6 +1033,7 @@ export function GitActionMenu({
       gitService,
       gitSummary.branchName,
       locale,
+      resolveModelSelection,
       workspaceIdentity,
       workspacePath,
     ],
@@ -1059,10 +1070,18 @@ export function GitActionMenu({
         branchName: gitSummary.branchName,
         error: message,
       });
+      // 把真实原因带给用户：只显示"失败"无法区分是模型不可用、请求失败还是输出不合规。
+      // 文案模板自带句号，错误消息也常带一个，去掉尾部标点避免出现「失败。。」。
+      const detail = message.replace(/[。.!！]+$/u, "").trim();
       setCommitError(
-        intl.formatMessage({
-          id: "git.actionMenu.commitDialog.error.generateFailed",
-        }),
+        detail
+          ? intl.formatMessage(
+              { id: "git.actionMenu.commitDialog.error.generateFailedDetail" },
+              { error: detail },
+            )
+          : intl.formatMessage({
+              id: "git.actionMenu.commitDialog.error.generateFailed",
+            }),
       );
     } finally {
       setCommitMessageGenerationPending(false);

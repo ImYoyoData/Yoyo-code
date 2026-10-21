@@ -44,6 +44,7 @@ import {
 import type {
   GitChangeSourceId,
   GitRepositorySummary,
+  ModelSelection,
   ZCodeSessionRunningSubagent,
   ZCodeTaskChangeSummary,
 } from "@zcode/shared";
@@ -109,6 +110,8 @@ interface ConversationStatusPanelProps {
   gitWorktreeReviewSourceId?: GitChangeSourceId | null;
   gitWorktreeChangeSummary?: { added: number; removed: number } | null;
   activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
+  /** 取当前会话在 Composer 里选中的模型；生成提交消息时使用。 */
+  resolveModelSelection?: () => ModelSelection | undefined;
   goal?: GoalState | null;
   sessionPlans?: readonly ToolCallRow[];
   plan?: PlanState | null;
@@ -356,6 +359,7 @@ function StatusSection({
 
 function GitStatusSection({
   activeTaskChangeSummary,
+  resolveModelSelection,
   gitSummary,
   gitWorktreeReviewSourceId,
   model,
@@ -367,6 +371,8 @@ function GitStatusSection({
   useVerticalFloatingPanels,
 }: {
   activeTaskChangeSummary?: ZCodeTaskChangeSummary | null;
+  /** 取当前会话在 Composer 里选中的模型；生成提交消息时使用。 */
+  resolveModelSelection?: () => ModelSelection | undefined;
   gitSummary: GitRepositorySummary | null | undefined;
   gitWorktreeReviewSourceId?: GitChangeSourceId | null;
   model: ConversationStatusPanelModel;
@@ -445,6 +451,7 @@ function GitStatusSection({
           workspaceIdentity={workspaceIdentity}
           gitSummary={gitSummary}
           activeTaskChangeSummary={activeTaskChangeSummary ?? null}
+          resolveModelSelection={resolveModelSelection}
           onRefreshGit={onRefreshGit}
           triggerLayout="status-row"
           className="w-full"
@@ -1711,6 +1718,7 @@ function ConversationStatusPanelImpl({
   gitWorktreeReviewSourceId,
   gitWorktreeChangeSummary,
   activeTaskChangeSummary,
+  resolveModelSelection,
   goal,
   sessionPlans,
   plan,
@@ -1971,6 +1979,7 @@ function ConversationStatusPanelImpl({
                 workspacePath={workspacePath}
                 workspaceIdentity={workspaceIdentity}
                 activeTaskChangeSummary={activeTaskChangeSummary}
+                resolveModelSelection={resolveModelSelection}
                 onRefreshGit={onRefreshGit}
                 onOpenGitReview={onOpenGitReview}
                 separated={false}

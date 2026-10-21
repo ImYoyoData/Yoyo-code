@@ -1,3 +1,4 @@
+import type { ModelSelection } from "./model-selection.js";
 import type { Locale } from "./protocol.js";
 
 export type GitHeadRefType = "branch" | "detached";
@@ -218,6 +219,11 @@ export interface GitGenerateCommitMessageRequest extends GitRepositoryRequest {
   includeUnstaged?: boolean;
   currentSessionFilePaths?: string[];
   conversationContext?: GitCommitMessageConversationContext;
+  /**
+   * 当前会话在 Composer 里选中的模型。
+   * 生成提交消息是一次辅助调用，应当沿用用户正在用的模型；缺省时才回退到 Host 的全局默认。
+   */
+  selection?: ModelSelection;
 }
 
 export interface GitCommitMessageConversationContext {
