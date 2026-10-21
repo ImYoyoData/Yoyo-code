@@ -78,6 +78,11 @@ Release **v3.16.0** (2026-10-21)
   - _中文：_
     - 生成提交消息改用当前会话选中的模型，并显示真实失败原因
 
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.15.7...v3.16.0
+
 ## v3.15.7 — 2026-10-20
 
 ## 中文
@@ -105,7 +110,6 @@ Release **v3.16.0** (2026-10-21)
   - _EN:_
     - The skip guard matched on the head commit message, which cannot tell a release commit produced by the pipeline apart from one a human pushed to main. Since this repo prepares the version and changelog on dev and merges to main, pushing `chore: release vX.Y.Z` straight to main had the release silently skipped. Only commits authored by github-actions[bot] are skipped now.
 
-
 ## English
 
 Release **v3.15.7** (2026-10-20)
@@ -130,7 +134,6 @@ Release **v3.15.7** (2026-10-20)
 - The skip guard matched on the head commit message, which cannot tell a release commit produced by the pipeline apart from one a human pushed to main. Since this repo prepares the version and changelog on dev and merges to main, pushing `chore: release vX.Y.Z` straight to main had the release silently skipped. Only commits authored by github-actions[bot] are skipped now.
   - _中文：_
     - 跳过守卫改按提交者判断，修复人工发布被静默跳过
-
 
 ---
 
