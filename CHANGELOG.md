@@ -3,6 +3,81 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.16.0 — 2026-10-21
+
+## 中文
+
+版本 **v3.16.0**（2026-10-21）
+
+### 新功能
+
+- 用 models.dev 补全推理等级取值
+  - _EN:_
+    - Reasoning levels could not be determined accurately: /models only says which parameters are supported, never which levels are allowed, and the built-in catalog matches by model name so it misses new models. Sending a wrong level is an immediate 400, not a graceful degradation.
+    - models.dev provides a precise source: 9087 models, 6768 flagged as reasoning, 5581 with reasoning_options (effort 4414, budget_tokens 622, toggle 1446). It is keyed per gateway and the allowed set genuinely differs between gateways for the same canonical model, so matching is exact only: identical Base URL first, then providerId, then templateId, with no host or model-name fuzzy matching.
+    - The api.json response is compressed into a slim index (669KB from 6MB) and cached for 24h under the app config dir, using the Host network transport so proxy, enterprise CA and no_proxy apply. HTTPS only, with a timeout, body cap, atomic write and single-flight refresh; a failed refresh falls back to the previous cache.
+    - Only the values are filled in from models.dev, never the map: models.dev does not name the request parameter, so which field is written is still decided by the built-in family map. Reasoning is included in the existing "no evidence" notice, and no fallback levels are ever invented, since guessing one produces a 400.
+
+### 问题修复
+
+- 400/422 时带出 provider 自己的拒绝原因
+  - _EN:_
+    - Generating a commit message failed with HTTP 400, but the failure classifier only said "Provider rejected the model request." and discarded the response body, leaving no clue for the user or the log.
+    - The provider's own explanation is now extracted from the APICallError response body (error.message / message / detail / msg, plain text included), truncated to 240 characters and appended to the message. HTML error pages are skipped, since a reverse-proxy page is not an explanation.
+    - The surfaced failure now names the parameter to fix instead of leaving the user with a bare "rejected".
+- 生成提交消息失败时暴露底层原因并落盘
+  - _EN:_
+    - The previous version collapsed every request failure into a generic message and kept the underlying error only in detail, so neither the user nor a log reader could tell what failed. The original error is now included in the dialog message and logged at error level on the host side, where logs actually persist in production builds.
+    - Also removes the duplicated full stop that appeared as "failed.." after formatting.
+- 绕开 PowerShell 7.6 中文更新提示的启动崩溃
+  - _EN:_
+    - PowerShell 7.6.x fail-fasts at startup inside its update notification. ShowUpdateNotification computes padding only from the localized template's line lengths (line1Length - line2Length + releaseTag.Length), with no console width involved; the Chinese template's second and third lines are longer than the first, so the value goes negative and PadRight throws. That is why the reported value was always the same -17.
+    - PowerShell exposes POWERSHELL_UPDATECHECK=Off, which disables that notification. It is now injected only on Windows when the resolved shell is pwsh, only when the user has not set it, and only for the terminal child process.
+    - Two unrelated but sound guards are kept: PTY geometry is clamped to 20x3 so ConPTY never receives zero columns, and the initial fit is skipped below 320x120 so the PTY starts at 80x24 instead of a few columns. PTY creation now logs at lifecycle level, because renderer info logs are no-ops in production builds.
+- 生成提交消息改用当前会话选中的模型，并显示真实失败原因
+  - _EN:_
+    - Commit-message generation used the Host's global default model rather than the model selected in the conversation, because the composer's picker only writes per-scope draft and session state and never updates the global default. When no provider was executable the default was missing entirely and generation failed outright.
+    - The composer's current selection is now sent with the request (selection on GitGenerateCommitMessageRequest) and preferred by the generator, falling back to the global default only when absent. The renderer reads the selection through a callback at click time rather than lifting draft state into props.
+    - The dialog now shows the real failure reason instead of a single generic message, so a missing model, a failed request and non-Conventional output are distinguishable.
+    - Added 5 regression tests covering the preference order, option preservation, fallback, model-unavailable and invalid-output paths.
+
+
+## English
+
+Release **v3.16.0** (2026-10-21)
+
+### Features
+
+- Reasoning levels could not be determined accurately: /models only says which parameters are supported, never which levels are allowed, and the built-in catalog matches by model name so it misses new models. Sending a wrong level is an immediate 400, not a graceful degradation.
+  - models.dev provides a precise source: 9087 models, 6768 flagged as reasoning, 5581 with reasoning_options (effort 4414, budget_tokens 622, toggle 1446). It is keyed per gateway and the allowed set genuinely differs between gateways for the same canonical model, so matching is exact only: identical Base URL first, then providerId, then templateId, with no host or model-name fuzzy matching.
+  - The api.json response is compressed into a slim index (669KB from 6MB) and cached for 24h under the app config dir, using the Host network transport so proxy, enterprise CA and no_proxy apply. HTTPS only, with a timeout, body cap, atomic write and single-flight refresh; a failed refresh falls back to the previous cache.
+  - Only the values are filled in from models.dev, never the map: models.dev does not name the request parameter, so which field is written is still decided by the built-in family map. Reasoning is included in the existing "no evidence" notice, and no fallback levels are ever invented, since guessing one produces a 400.
+  - _中文：_
+    - 用 models.dev 补全推理等级取值
+
+### Fixes
+
+- Generating a commit message failed with HTTP 400, but the failure classifier only said "Provider rejected the model request." and discarded the response body, leaving no clue for the user or the log.
+  - The provider's own explanation is now extracted from the APICallError response body (error.message / message / detail / msg, plain text included), truncated to 240 characters and appended to the message. HTML error pages are skipped, since a reverse-proxy page is not an explanation.
+  - The surfaced failure now names the parameter to fix instead of leaving the user with a bare "rejected".
+  - _中文：_
+    - 400/422 时带出 provider 自己的拒绝原因
+- The previous version collapsed every request failure into a generic message and kept the underlying error only in detail, so neither the user nor a log reader could tell what failed. The original error is now included in the dialog message and logged at error level on the host side, where logs actually persist in production builds.
+  - Also removes the duplicated full stop that appeared as "failed.." after formatting.
+  - _中文：_
+    - 生成提交消息失败时暴露底层原因并落盘
+- PowerShell 7.6.x fail-fasts at startup inside its update notification. ShowUpdateNotification computes padding only from the localized template's line lengths (line1Length - line2Length + releaseTag.Length), with no console width involved; the Chinese template's second and third lines are longer than the first, so the value goes negative and PadRight throws. That is why the reported value was always the same -17.
+  - PowerShell exposes POWERSHELL_UPDATECHECK=Off, which disables that notification. It is now injected only on Windows when the resolved shell is pwsh, only when the user has not set it, and only for the terminal child process.
+  - Two unrelated but sound guards are kept: PTY geometry is clamped to 20x3 so ConPTY never receives zero columns, and the initial fit is skipped below 320x120 so the PTY starts at 80x24 instead of a few columns. PTY creation now logs at lifecycle level, because renderer info logs are no-ops in production builds.
+  - _中文：_
+    - 绕开 PowerShell 7.6 中文更新提示的启动崩溃
+- Commit-message generation used the Host's global default model rather than the model selected in the conversation, because the composer's picker only writes per-scope draft and session state and never updates the global default. When no provider was executable the default was missing entirely and generation failed outright.
+  - The composer's current selection is now sent with the request (selection on GitGenerateCommitMessageRequest) and preferred by the generator, falling back to the global default only when absent. The renderer reads the selection through a callback at click time rather than lifting draft state into props.
+  - The dialog now shows the real failure reason instead of a single generic message, so a missing model, a failed request and non-Conventional output are distinguishable.
+  - Added 5 regression tests covering the preference order, option preservation, fallback, model-unavailable and invalid-output paths.
+  - _中文：_
+    - 生成提交消息改用当前会话选中的模型，并显示真实失败原因
+
 ## v3.15.7 — 2026-10-20
 
 ## 中文
