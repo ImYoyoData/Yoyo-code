@@ -164,17 +164,19 @@ test("推理等级只在用户未改过时写入", () => {
   assert.equal(overridden.optionSpecs, undefined);
 });
 
-test("端点没声明、目录也没有专用规则时，三项能力全部标记为未验证", () => {
+test("端点没声明、目录也没有专用规则时，四项能力全部标记为未验证", () => {
   // OpenAI / Anthropic 官方 /models 只返回 id，不含任何能力字段。
   assert.deepEqual(unverifiedCapabilityFields({ catalogConfig: {}, hasModelSpecificRule: false }), [
     "contextWindow",
     "maxOutputTokens",
     "inputFormat",
+    "reasoningLevel",
   ]);
   assert.deepEqual(unverifiedCapabilityFields({ catalogConfig: null, hasModelSpecificRule: false }), [
     "contextWindow",
     "maxOutputTokens",
     "inputFormat",
+    "reasoningLevel",
   ]);
 });
 
@@ -183,8 +185,16 @@ test("目录里有该模型的专用规则时不做任何提示", () => {
 });
 
 test("端点声明齐全时不提示", () => {
+  // 推理等级也要有取值才算齐全；只有上下文/输出/模态不构成"全部已知"。
+  const complete = {
+    ...CATALOG_ENTRY,
+    optionSpecs: {
+      ...CATALOG_ENTRY.optionSpecs,
+      reasoningLevel: { values: ["low", "high", "max"] },
+    },
+  };
   assert.deepEqual(
-    unverifiedCapabilityFields({ catalogConfig: CATALOG_ENTRY, hasModelSpecificRule: false }),
+    unverifiedCapabilityFields({ catalogConfig: complete, hasModelSpecificRule: false }),
     [],
   );
 });
@@ -195,7 +205,7 @@ test("端点只声明部分能力时，只提示缺的那几项", () => {
       catalogConfig: { properties: { contextWindow: 64000 } },
       hasModelSpecificRule: false,
     }),
-    ["maxOutputTokens", "inputFormat"],
+    ["maxOutputTokens", "inputFormat", "reasoningLevel"],
   );
 });
 
@@ -227,4 +237,47 @@ test("兜底参数会真正落进个人配置", () => {
   assert.equal(personal.properties?.contextWindow, 200000);
   assert.equal(personal.optionSpecs?.maxOutputTokens?.max, 32000);
   assert.equal(personal.properties?.inputFormat?.supportsImage, false);
+});
+
+test("推理等级没有依据时也纳入未验证提示", () => {
+  // models.dev 与端点都没给出档位时，只能提示用户，不能凭空造一档再发给 Provider。
+  assert.ok(
+    unverifiedCapabilityFields({ catalogConfig: CATALOG_ENTRY, hasModelSpecificRule: false }).includes(
+      "reasoningLevel",
+    ),
+  );
+  // 目录或 models.dev 给了取值就不再提示。
+  const withReasoning = {
+    ...CATALOG_ENTRY,
+    optionSpecs: {
+      ...CATALOG_ENTRY.optionSpecs,
+      reasoningLevel: { values: ["low", "high", "max"] },
+    },
+  };
+  assert.ok(
+    !unverifiedCapabilityFields({ catalogConfig: withReasoning, hasModelSpecificRule: false }).includes(
+      "reasoningLevel",
+    ),
+  );
+});
+
+test("推理等级不产生默认兜底值", () => {
+  // 兜底档位会被真的发给 Provider，猜错就是 400，所以这里必须什么都不写。
+  const seeded = withFallbackCapabilities({}, ["reasoningLevel"]);
+  assert.equal(seeded?.optionSpecs?.reasoningLevel, undefined);
+});
+
+test("写入推理档位时保留已有的 map（回归）", () => {
+  const personal = applyCatalogPersonalConfig({
+    personalConfig: {
+      optionSpecs: {
+        reasoningLevel: { values: ["disabled", "enabled"], map: '{"reasoning_effort": reasoningLevel}' },
+      },
+    },
+    catalog: { optionSpecs: { reasoningLevel: { values: ["low", "high", "max"] } } },
+    draft: createDraft(),
+  });
+  assert.deepEqual(personal.optionSpecs?.reasoningLevel?.values, ["low", "high", "max"]);
+  // map 由家族规则提供，目录只给取值，不能把它抹掉。
+  assert.equal(personal.optionSpecs?.reasoningLevel?.map, '{"reasoning_effort": reasoningLevel}');
 });

@@ -55,14 +55,22 @@ const CATALOG_BOOLEAN_KEYS = [
   "supportsNativeWebSearch",
 ] as const;
 
-/** 需要单独判断来源的能力项：上下文、最大输出、输入类型（视觉/视频/PDF）。 */
-export type CapabilityField = "contextWindow" | "maxOutputTokens" | "inputFormat";
+/** 需要单独判断来源的能力项：上下文、最大输出、输入类型（视觉/视频/PDF）、推理等级。 */
+export type CapabilityField =
+  | "contextWindow"
+  | "maxOutputTokens"
+  | "inputFormat"
+  | "reasoningLevel";
 
 /**
  * 端点没声明、规则目录也没有该模型专用规则时写入的默认兜底参数。
  * 取值与内置目录的 `.*` 兜底一致，保证界面显示与运行时行为不会分裂。
  */
-const FALLBACK_CAPABILITIES: Record<CapabilityField, ModelConfigObject> = {
+/**
+ * 推理等级故意不提供兜底：凭空造一档位再发给 Provider 会直接 400，
+ * 没有依据时只提示，不写入任何值。
+ */
+const FALLBACK_CAPABILITIES: Partial<Record<CapabilityField, ModelConfigObject>> = {
   contextWindow: { properties: { contextWindow: 200_000 } },
   maxOutputTokens: { optionSpecs: { maxOutputTokens: { max: 32_000 } } },
   inputFormat: {
@@ -96,6 +104,7 @@ export function unverifiedCapabilityFields({
   if (catalogConfig?.properties?.contextWindow == null) unverified.push("contextWindow");
   if (catalogConfig?.optionSpecs?.maxOutputTokens?.max == null) unverified.push("maxOutputTokens");
   if (catalogConfig?.properties?.inputFormat == null) unverified.push("inputFormat");
+  if (catalogConfig?.optionSpecs?.reasoningLevel?.values == null) unverified.push("reasoningLevel");
   return unverified;
 }
 
@@ -107,7 +116,8 @@ export function withFallbackCapabilities(
   if (unverified.length === 0) return catalogConfig ?? null;
   let result: ModelConfigObject = catalogConfig ?? {};
   for (const field of unverified) {
-    result = mergeCatalogConfig(FALLBACK_CAPABILITIES[field], result);
+    const fallback = FALLBACK_CAPABILITIES[field];
+    if (fallback) result = mergeCatalogConfig(fallback, result);
   }
   return result;
 }
@@ -164,7 +174,12 @@ export function applyCatalogPersonalConfig({
     };
   }
   if (!overridden.has("reasoningLevelValuesValue") && catalog.optionSpecs?.reasoningLevel) {
-    optionSpecs.reasoningLevel = { ...catalog.optionSpecs.reasoningLevel };
+    // 只覆盖目录声明的叶子（通常是 values）；已有的 map 不能被抹掉，
+    // 否则个人规则会丢掉"档位怎么落到请求体"的映射。
+    optionSpecs.reasoningLevel = {
+      ...(isPlainObject(optionSpecs.reasoningLevel) ? optionSpecs.reasoningLevel : {}),
+      ...catalog.optionSpecs.reasoningLevel,
+    };
   }
 
   const result: SparseRecord = { ...personalConfig };

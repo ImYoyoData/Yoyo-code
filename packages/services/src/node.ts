@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   createNodeProviderRuntimePathEnv,
+  loadModelsDevReasoningIndex,
   NodeModelSelectionConfigRepository,
   PERSONAL_PROVIDER_CONFIG_FILE_NAME,
 } from "@zcode/provider-node";
@@ -1512,6 +1513,13 @@ export function createLocalServices(options: {
     // 模型目录走 Host 网络传输：第三方 Provider 的 Base URL 由用户填写，
     // 仍必须复用同一份 Proxy、企业 CA 与 no_proxy 规则，不能回退到进程内 global fetch。
     listProviderModels: createProviderModelsLister({ fetch: hostApiNetworkTransport.fetch }),
+    // models.dev 只补推理等级取值：按网关身份精确匹配，匹配不到就不补。
+    // 缓存走 Host 网络传输，Proxy / 企业 CA / no_proxy 与其它请求一致。
+    loadReasoningIndex: () =>
+      loadModelsDevReasoningIndex({
+        cacheFilePath: join(resolveAppConfigDir(), "runtime", "model-catalog", "models-dev.json"),
+        request: hostApiNetworkTransport.fetch,
+      }),
   });
   // 官方 Server MCP 的凭证解析源。MCP 调用的身份头与 MCP 额度查询（/api/v1/mcp/usage）
   // 必须共用这一份实现，否则两处对"当前选中的 Coding Plan 连接"的判定会分叉。

@@ -49,4 +49,5 @@ const CAPABILITY_FIELD_MESSAGE_IDS = {
   contextWindow: "settings.modelProvider.contextWindow",
   maxOutputTokens: "settings.modelProvider.maxOutputTokens",
   inputFormat: "settings.modelProvider.inputModalities",
+  reasoningLevel: "settings.modelProvider.reasoningLevelsOrdered",
 } as const satisfies Record<CapabilityField, string>;

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   parseProviderModelCatalog,
   readProviderModelCapabilities,
+  withReasoningLevelValues,
 } from "../src/model-provider/providerModelCapabilities.js";
 
 test("端点声明的上下文与最大输出按稀疏叶子回填", () => {
@@ -118,4 +119,23 @@ test("重复 modelId 保留首条，不让后出现的空壳条目抹掉能力",
   });
   assert.equal(entries.length, 1);
   assert.equal(entries[0]?.config.properties?.contextWindow, 64000);
+});
+
+test("models.dev 只覆盖推理档位取值，不动 map", () => {
+  // models.dev 不给参数名；请求里写哪个字段仍由规则目录的家族 map 决定。
+  const base = readProviderModelCapabilities({ id: "m", context_length: 8000 });
+  const withReasoning = withReasoningLevelValues(
+    { ...base, optionSpecs: { reasoningLevel: { map: '{"reasoning_effort": reasoningLevel}' } } },
+    ["low", "high", "max"],
+  );
+  assert.deepEqual(withReasoning.optionSpecs?.reasoningLevel?.values, ["low", "high", "max"]);
+  assert.equal(
+    withReasoning.optionSpecs?.reasoningLevel?.map,
+    '{"reasoning_effort": reasoningLevel}',
+  );
+});
+
+test("没有档位时不改动条目", () => {
+  const base = { properties: { contextWindow: 8000 } };
+  assert.equal(withReasoningLevelValues(base, []), base);
 });

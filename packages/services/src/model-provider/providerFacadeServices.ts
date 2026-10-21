@@ -19,7 +19,14 @@ import {
 import { createServiceDescriptor } from "../descriptors.js";
 import type { ModelConnectivityResult } from "@zcode/shared";
 import { createServiceLogger } from "../logger/serviceLogger.js";
-import type { ProviderModelCatalogEntry } from "./providerModelCapabilities.js";
+import {
+  resolveModelsDevReasoningValues,
+  type ModelsDevReasoningIndex,
+} from "@zcode/provider";
+import {
+  withReasoningLevelValues,
+  type ProviderModelCatalogEntry,
+} from "./providerModelCapabilities.js";
 
 export type {
   ProviderSettingsProviderView,
@@ -146,6 +153,8 @@ export function createProviderSettingsService(
   ensureReady: () => Promise<void> = async () => {},
   testConnectivity?: ProviderSettingsConnectivityTester,
   listModels?: ProviderSettingsModelLister,
+  /** models.dev 推理索引；未装配时不补推理档位。 */
+  loadReasoningIndex?: () => Promise<ModelsDevReasoningIndex | null>,
 ): IProviderSettingsService {
   return {
     onDidChange: toEvent((listener) => facade.onDidChange(listener)),
@@ -273,12 +282,28 @@ export function createProviderSettingsService(
           },
         };
       }
-      return listModels({
+      const listed = await listModels({
         baseUrl,
         apiType,
         apiKey,
         headers: api.headers ?? null,
       });
+      if (!listed.success || !loadReasoningIndex) return listed;
+      // 推理档位按网关记录：只用精确身份匹配，匹配不到就保持目录原值。
+      const index = await loadReasoningIndex().catch(() => null);
+      if (!index) return listed;
+      return {
+        success: true,
+        models: listed.models.map((entry) => {
+          const values = resolveModelsDevReasoningValues(index, {
+            providerId: provider.providerId,
+            templateId: provider.templateId,
+            baseUrl,
+            modelId: entry.id,
+          });
+          return values ? { ...entry, config: withReasoningLevelValues(entry.config, values) } : entry;
+        }),
+      };
     },
   };
 }

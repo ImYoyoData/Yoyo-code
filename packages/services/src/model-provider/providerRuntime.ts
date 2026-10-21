@@ -25,11 +25,14 @@ import {
   type ProviderSettingsConnectivityTester,
   type ProviderSettingsModelLister,
 } from "./providerFacadeServices.js";
+import type { ModelsDevReasoningIndex } from "@zcode/provider";
 
 export interface ProviderRuntimeOptions extends ProviderConfigRuntimeOptions {
   readonly accountSource?: RefreshableProviderSource<AccountProviderConfigSnapshot>;
   readonly testConnectivity?: ProviderSettingsConnectivityTester;
   readonly listProviderModels?: ProviderSettingsModelLister;
+  /** models.dev 推理索引；未装配时不补推理档位。 */
+  readonly loadReasoningIndex?: () => Promise<ModelsDevReasoningIndex | null>;
 }
 
 export interface ProviderRuntimeDependencies {
@@ -38,6 +41,7 @@ export interface ProviderRuntimeDependencies {
   readonly disposeAccountSource?: () => void;
   readonly testConnectivity?: ProviderSettingsConnectivityTester;
   readonly listProviderModels?: ProviderSettingsModelLister;
+  readonly loadReasoningIndex?: () => Promise<ModelsDevReasoningIndex | null>;
   readonly modelSelectionConfiguredDefaultSource?: ModelSelectionConfiguredDefaultSource;
   readonly disposeModelSelectionConfiguredDefaultSource?: () => void;
 }
@@ -109,6 +113,7 @@ export class ProviderRuntime {
       ensureReady,
       dependencies.testConnectivity,
       dependencies.listProviderModels,
+      dependencies.loadReasoningIndex,
     );
     this.#modelSelectionRuntime = createModelSelectionService(
       createNodeModelSelectionFacade(this.registryService),
@@ -198,7 +203,8 @@ function createSettingsMutationTarget(
 }
 
 export function createProviderRuntime(options: ProviderRuntimeOptions): ProviderRuntime {
-  const { accountSource, testConnectivity, listProviderModels, ...configRuntimeOptions } = options;
+  const { accountSource, testConnectivity, listProviderModels, loadReasoningIndex, ...configRuntimeOptions } =
+    options;
   const configRuntime = createProviderConfigRuntime(configRuntimeOptions);
   const modelSelectionConfiguredDefaultSource = new NodeModelSelectionConfigRepository({
     personalRepository: configRuntime.personalRepository,
@@ -208,6 +214,7 @@ export function createProviderRuntime(options: ProviderRuntimeOptions): Provider
     accountSource,
     testConnectivity,
     listProviderModels,
+    loadReasoningIndex,
     modelSelectionConfiguredDefaultSource,
     disposeModelSelectionConfiguredDefaultSource: () =>
       modelSelectionConfiguredDefaultSource.dispose(),

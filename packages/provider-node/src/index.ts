@@ -1,5 +1,6 @@
 export * from "./zcode-builtin-provider-config-source.js";
 export * from "./zcode-builtin-release.js";
+export * from "./models-dev-catalog.js";
 export * from "./zcode-builtin-download.js";
 export * from "./zcode-builtin-remote-synchronizer.js";
 export * from "./zcode-builtin-cache-paths.js";
