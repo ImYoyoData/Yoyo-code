@@ -1,5 +1,5 @@
 // queue 命令组：deleteQueueItem / editQueueItem / reorderQueueItem / setAutoDrain /
-// setFollowupMode / sendQueuedNow（原生重做，组文件样板见 session-flow.ts）。
+// setFollowupMode / sendQueuedNow / sendQueuedGuide（原生重做，组文件样板见 session-flow.ts）。
 // 决策逻辑直驱 core（app 层 queue API，批1 已搬运）；queueItemId ≡ core 的
 // pendingInputId（同一 id 空间，无需翻译）。queue 变更的事件由 core runtime 自发，
 // 经 gateway ingest 推进 v4 投影——本组不需要 legacy 广播钩子。
@@ -9,7 +9,7 @@ import type {
   CommandResult,
 } from "@zcode/shared/zcode-protocol-v4";
 import { mapAttachmentRefsToTurnAttachments } from "../attachment-refs.js";
-import { inputIntentMetadataFromQueueItem } from "../input-intent.js";
+import { inputIntentMetadataFromCanonical, inputIntentMetadataFromQueueItem } from "../input-intent.js";
 import { startPromptTurn } from "../prompt-turn.js";
 import { requireRecord } from "../record-access.js";
 import type { V4CommandCoreHost, V4SessionRecordView } from "../types.js";
@@ -53,6 +53,15 @@ class V4QueueItemNotEditableError extends Error {
   constructor(queueItemId: string) {
     super(`v4 queue item is not editable: ${queueItemId}`);
     this.name = "V4QueueItemNotEditableError";
+  }
+}
+
+/** guide 只对普通文本输入有意义；compact / goal 是 typed maintenance intent。 */
+class V4QueueItemGuideUnsupportedError extends Error {
+  readonly reasonCode = "guard.queueItemGuideUnsupported";
+  constructor(queueItemId: string) {
+    super(`v4 sendQueuedGuide only supports sendText queue items: ${queueItemId}`);
+    this.name = "V4QueueItemGuideUnsupportedError";
   }
 }
 
@@ -290,6 +299,90 @@ async function sendQueuedNow(
   }
 }
 
+/**
+ * sendQueuedGuide：把一条已排队的普通输入转为 guide 投递。
+ *
+ * 与 sendQueuedNow 的区别：不中断当前 turn，也不抢占执行权；直接复用 Core 的 guide
+ * admission——运行中且可 steer 时注入当前 turn 的下一次工具调用，idle 时按立即发送启动。
+ * 附件或不可 steer 的边界由 Core 既有规则回退为队列，内容不丢。
+ *
+ * 新 admission 必须换新的 commandId / queueItemId（用 canonical 重建），原 queueItemId
+ * 只作为 provenance；否则 removeQueueItem 会把刚注入的 guide 一起删掉。
+ */
+async function sendQueuedGuide(
+  host: V4CommandCoreHost,
+  envelope: CommandEnvelope,
+): Promise<CommandResult | undefined> {
+  const payload = envelope.payload as CommandPayloadMap["sendQueuedGuide"];
+  const record = requireRecord(host, envelope.sessionId);
+  const reservationId = envelope.commandId;
+  const traceOptions = { traceContext: record.traceContext };
+  let queueItemReserved = false;
+  let admitted = false;
+  try {
+    const queueItem = host.getQueueItem?.(record.app.sessionId, payload.queueItemId) ?? null;
+    if (queueItem === null) {
+      throw new V4QueueItemTextUnavailableError(payload.queueItemId);
+    }
+    if (queueItem.kind !== "sendText") {
+      throw new V4QueueItemGuideUnsupportedError(payload.queueItemId);
+    }
+    if (!(await record.app.reserveQueueItem(payload.queueItemId, reservationId, traceOptions))) {
+      throw new V4QueueItemReservedError(payload.queueItemId);
+    }
+    queueItemReserved = true;
+    const attachments = await mapAttachmentRefsToTurnAttachments(record.app, queueItem.attachments);
+    const intent = inputIntentMetadataFromCanonical(
+      envelope,
+      {
+        kind: "sendText",
+        text: queueItem.text,
+        ...(queueItem.modelSelection ? { modelSelection: queueItem.modelSelection } : {}),
+        ...(queueItem.mode ? { mode: queueItem.mode } : {}),
+        ...(queueItem.planEnabled !== undefined ? { planEnabled: queueItem.planEnabled } : {}),
+        sourceCommandId: queueItem.sourceCommandId,
+        clientId: queueItem.clientId,
+        queueItemId: queueItem.queueItemId,
+        requestedDelivery: "guide",
+        admittedDelivery: "guide",
+        attachmentRefs: queueItem.attachments,
+        ...(queueItem.sharedContextRefs
+          ? { sharedContextRefs: queueItem.sharedContextRefs }
+          : {}),
+        ...(queueItem.provenance ? { provenance: queueItem.provenance } : {}),
+      },
+      queueItem.text,
+    );
+    await startPromptTurn(host, record, {
+      content: queueItem.text,
+      inputId: envelope.commandId,
+      intent,
+      ...(attachments ? { attachments } : {}),
+      ...(queueItem.toolDisallowlist
+        ? { toolDisallowlist: queueItem.toolDisallowlist }
+        : {}),
+    });
+    admitted = true;
+    const removed = await record.app.removeQueueItem(payload.queueItemId, {
+      reason: "promoted",
+      reservationId,
+      ...traceOptions,
+    });
+    if (!removed) throw new V4QueuePromotionCommitError(payload.queueItemId);
+    return undefined;
+  } finally {
+    // admission 已成功时不能释放 reservation：remove 失败后原项若被下一次 drain 再消费
+    // 就会重复发送；保持 reserved 交给显式故障处理（与 sendQueuedNow 同一取舍）。
+    if (queueItemReserved && !admitted) {
+      await record.app.releaseQueueItemReservation(
+        payload.queueItemId,
+        reservationId,
+        traceOptions,
+      );
+    }
+  }
+}
+
 export const queueHandlers = {
   deleteQueueItem,
   editQueueItem,
@@ -297,4 +390,5 @@ export const queueHandlers = {
   setAutoDrain,
   setFollowupMode,
   sendQueuedNow,
+  sendQueuedGuide,
 };

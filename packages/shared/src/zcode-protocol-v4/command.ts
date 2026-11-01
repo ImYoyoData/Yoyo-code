@@ -161,6 +161,9 @@ export const commandPayloadSchemas = {
     feedback: z.enum(["like", "dislike"]).nullable(),
   }),
   sendQueuedNow: z.object({ queueItemId: z.string() }),
+  // 把一条已排队的普通输入转为 guide 投递：运行中注入当前 turn 的下一次工具调用，
+  // idle 时等同立即发送。compact / goal 项不支持。
+  sendQueuedGuide: z.object({ queueItemId: z.string() }),
   editQueueItem: z.object({ queueItemId: z.string(), newText: z.string() }),
   // beforeQueueItemId = null → 移到队尾。
   reorderQueueItem: z.object({
@@ -297,6 +300,7 @@ export const COMMANDS_REQUIRING_BASE_REVISION: ReadonlySet<CommandType> = new Se
   "retryTurn",
   "setAssistantFeedback",
   "sendQueuedNow",
+  "sendQueuedGuide",
   "editQueueItem",
   "reorderQueueItem",
   "deleteQueueItem",
