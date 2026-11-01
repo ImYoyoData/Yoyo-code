@@ -38,6 +38,11 @@ Release **v3.18.0** (2026-11-01)
   - _中文：_
     - 中英文 README 的产品名统一为 Yoyo Code，并修正过时的数据目录与安装目录。
 
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.17.0...v3.18.0
+
 ## v3.17.0 — 2026-11-01
 
 ## 中文
@@ -60,7 +65,6 @@ Release **v3.18.0** (2026-11-01)
     - Fixed awaits inside DatabaseSync transactions that let other sessions' writes join the same connection transaction and be erased by a fork rollback, losing sessions and history after restart.
     - Session-store repositories are synchronous again, covered by a concurrent write plus pre-commit fault-injection regression.
 
-
 ## English
 
 Release **v3.17.0** (2026-11-01)
@@ -80,7 +84,6 @@ Release **v3.17.0** (2026-11-01)
   - _中文：_
     - 修复 SQLite 事务内 await 让其他会话写入混入同一连接事务、并被 fork 回滚一起撤销的问题，重启后会导致会话与历史丢失。
     - 会话存储内部仓库改为同步，新增并发写入 + 提交前故障注入的回归测试。
-
 
 ---
 
