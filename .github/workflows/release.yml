@@ -125,7 +125,8 @@ jobs:
   build-macos:
     needs: prepare
     if: needs.prepare.outputs.should_release == 'true'
-    runs-on: macos-14
+    # macos-14 镜像于 2026-11-02 退役，brownout 期间任务会被直接取消。
+    runs-on: macos-15
     timeout-minutes: 120
     env:
       ZCODE_ENV: production
