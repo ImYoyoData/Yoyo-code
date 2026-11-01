@@ -3,6 +3,29 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.19.0 — 2026-11-01
+
+## 中文
+
+版本 **v3.19.0**（2026-11-01）
+
+### 新功能
+
+- 新增本地流式语音输入，边说边出字，音频不上传云端。
+  - _EN:_
+    - Local streaming voice input in the composer: partial text appears as you speak and stays local.
+
+
+## English
+
+Release **v3.19.0** (2026-11-01)
+
+### Features
+
+- Local streaming voice input in the composer: partial text appears as you speak and stays local.
+  - _中文：_
+    - 新增本地流式语音输入，边说边出字，音频不上传云端。
+
 ## v3.18.0 — 2026-11-01
 
 ## 中文

@@ -218,6 +218,8 @@ export type {
   RemoteSessionClosedEvent,
   RemoteServiceSession,
   SSHConfigAliasOption,
+  SpeechPrepareProgress,
+  SpeechPrepareResult,
   TaskNotificationPayload,
   UpdateCheckResultPayload,
   UpdateStatePayload,

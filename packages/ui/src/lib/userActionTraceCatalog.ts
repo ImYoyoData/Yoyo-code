@@ -7,6 +7,7 @@ export const CORE_USER_ACTION_FEATURES = {
   "task.lifecycle": ["create", "open", "archive", "rename", "delete"],
   "task.layout": ["open_split", "split_right", "split_down", "close_pane"],
   "conversation.composer.message": ["send", "stop"],
+  "conversation.composer.speech": ["start", "stop"],
   "conversation.composer.attachment": ["add", "remove", "retry_upload"],
   "conversation.composer.config": ["change_model", "change_thought_level", "change_mode"],
   "conversation.queue.item": ["send_now", "send_guide", "edit", "remove", "reorder"],

@@ -195,6 +195,7 @@ import {
 } from "./resourceManagerWindow.js";
 import { createDesktopHelpConfigReader } from "./desktopHelpConfig.js";
 import { registerPlatformIpcHandlers } from "./desktopMainIpcPlatform.js";
+import { DesktopSpeechService } from "./speechService.js";
 import {
   loadCliMcpFromUserDirectory,
   migrateLegacyCommonMcp,
@@ -246,6 +247,13 @@ import { mainMemoryDiagnosticsRegistry } from "./mainMemoryDiagnostics.js";
 
 registerLocalMediaPreviewScheme(protocol);
 const localMediaPreviewPathRegistry = createLocalMediaPreviewPathRegistry();
+const desktopSpeechService = new DesktopSpeechService((progress) => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send(PlatformChannels.SpeechProgress, progress);
+    }
+  }
+});
 
 // e2e 由 Chromedriver 管理远程调试端口；如果这里继续固定到 9229，
 // 会和开发态已打开的 ZCode Dev 抢端口，导致 WebDriver session 创建前白屏超时。
@@ -1949,6 +1957,7 @@ app.whenReady().then(async () => {
   registerPlatformIpcHandlers({
     fetchHelpConfig: readHelpConfig,
     logger,
+    speechService: desktopSpeechService,
     // CDP-on-guest pivot：renderer `<webview>` dom-ready 上报 guest webContentsId → attach。
     attachBrowserGuest: (key, webContentsId, options) => {
       const result = browserGuestManager.attachGuest(key, webContentsId, options);
@@ -2203,6 +2212,8 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 app.on("before-quit", (event) => {
+  // 语音运行时是本地子进程，退出时立即回收；不等待模型/音频收尾。
+  void desktopSpeechService.stop();
   // Windows 最后窗口关闭会在 close 阶段提前确认并标记 forceQuit；
   // macOS 的 Cmd+Q / 菜单退出不会走该窗口关闭确认，必须在 before-quit 保留应用级确认兜底。
   if (!forceQuitRef.current && shouldConfirmAppQuit() && !confirmAppQuit()) {

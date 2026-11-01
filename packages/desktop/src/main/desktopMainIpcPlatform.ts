@@ -18,6 +18,7 @@ import {
   type OpenInEditorOptions,
   type SaveCliMcpToUserDirectoryRequest,
   type CreateTempTextAttachmentRequest,
+  type SpeechPrepareResult,
   type UpdateStatePayload,
   type WindowControlsOverlayReadyPayload,
 } from "@zcode/shared";
@@ -92,6 +93,8 @@ export function registerPlatformIpcHandlers(options: {
   setShortcutRecordingActive?: (active: boolean, ownerWebContentsId?: number | null) => void;
   /** 桌面端设备标识符（基于 userData 路径的 SHA-256） */
   deviceMid: string;
+  /** 本地语音听写运行时/模型管理（主进程单例）。 */
+  speechService: { prepare(): Promise<SpeechPrepareResult> };
   /** CDP-on-guest pivot：renderer `<webview>` 上报 guest webContentsId → main attach。 */
   attachBrowserGuest?: AttachBrowserGuest;
   /** renderer 自由尺寸变化 → 当前窗口所属的受控 tab。 */
@@ -101,6 +104,8 @@ export function registerPlatformIpcHandlers(options: {
   /** Browser tab 关闭、挂起、恢复与跨重启 shell IPC。 */
   browserViewResidencyHandlers?: BrowserViewResidencyIpcHandlers;
 }) {
+  ipcMain.handle(PlatformChannels.SpeechPrepare, async () => options.speechService.prepare());
+
   ipcMain.handle(PlatformChannels.SelectDirectory, async () => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory", "createDirectory"],
