@@ -3,6 +3,41 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.18.0 — 2026-11-01
+
+## 中文
+
+版本 **v3.18.0**（2026-11-01）
+
+### 新功能
+
+- 队列消息新增「引导」按钮，可在当前任务的下一次工具调用后运行，不中断本轮。
+  - _EN:_
+    - Queued messages now offer a Guide action that steers the input into the current run at its next tool call without interrupting it.
+
+### 文档
+
+- 中英文 README 的产品名统一为 Yoyo Code，并修正过时的数据目录与安装目录。
+  - _EN:_
+    - Both READMEs now use the Yoyo Code name, replace upstream community links with this repository, and document the .yoyo-code data and install directories.
+
+
+## English
+
+Release **v3.18.0** (2026-11-01)
+
+### Features
+
+- Queued messages now offer a Guide action that steers the input into the current run at its next tool call without interrupting it.
+  - _中文：_
+    - 队列消息新增「引导」按钮，可在当前任务的下一次工具调用后运行，不中断本轮。
+
+### Documentation
+
+- Both READMEs now use the Yoyo Code name, replace upstream community links with this repository, and document the .yoyo-code data and install directories.
+  - _中文：_
+    - 中英文 README 的产品名统一为 Yoyo Code，并修正过时的数据目录与安装目录。
+
 ## v3.17.0 — 2026-11-01
 
 ## 中文
