@@ -393,6 +393,8 @@ export class SqliteSessionStore
       throw new Error("Fork commit bundle identity is invalid");
     }
     const entryId = `v4_command_fact:child:${commandFact.parentSessionId}:${commandFact.sourceCommandId}`;
+    // DatabaseSync 事务属于整个连接：BEGIN 到提交/回滚之间不能 await，
+    // 否则其他会话的成功写入会被 fork 回滚误删，重启后无法再打开。
     this.db.exec("begin immediate");
     try {
       const existing = sessionEntryRepository
@@ -416,14 +418,14 @@ export class SqliteSessionStore
       this.maybeThrowForkCommitFault("afterChild");
       for (const message of bundle.messages) {
         const messageSource = bundle.copySources?.messages[message.info.id];
-        await messageRepository.saveMessage(
+        messageRepository.saveMessage(
           this.db,
           message.info,
           messageSource ? { sessionID: child.parentID, id: messageSource } : undefined,
         );
         for (const part of message.parts) {
           const partSource = bundle.copySources?.parts[part.id];
-          await messageRepository.savePart(
+          messageRepository.savePart(
             this.db,
             part,
             partSource ? { sessionID: child.parentID, id: partSource } : undefined,
@@ -444,7 +446,7 @@ export class SqliteSessionStore
       }
       this.maybeThrowForkCommitFault("afterEntries");
       if (initialInput) {
-        await sessionInputRepository.saveSessionInput(this.db, initialInput);
+        sessionInputRepository.saveSessionInput(this.db, initialInput);
       }
       this.maybeThrowForkCommitFault("afterInput");
       const now = Date.now();
@@ -500,9 +502,9 @@ export class SqliteSessionStore
         return existing;
       }
       const persisted = sessionRepository.createSession(this.db, session);
-      await messageRepository.saveMessage(this.db, contextMessage.info);
+      messageRepository.saveMessage(this.db, contextMessage.info);
       for (const part of contextMessage.parts) {
-        await messageRepository.savePart(this.db, part);
+        messageRepository.savePart(this.db, part);
       }
       sessionEntryRepository.saveSessionEntry(this.db, provenance);
       this.db.exec("commit");
@@ -549,18 +551,18 @@ export class SqliteSessionStore
           ...(input.sourceId ? { sourceId: input.sourceId } : {}),
         },
       });
-      const contextMessage = (
-        await messageRepository.messages(this.db, { sessionID: input.sessionID })
-      ).find((message) => {
-        const metadata = message.info.metadata;
-        return Boolean(
-          metadata &&
-          typeof metadata === "object" &&
-          (metadata as Record<string, unknown>).contextId === input.contextId,
-        );
-      });
+      const contextMessage = messageRepository
+        .messages(this.db, { sessionID: input.sessionID })
+        .find((message) => {
+          const metadata = message.info.metadata;
+          return Boolean(
+            metadata &&
+            typeof metadata === "object" &&
+            (metadata as Record<string, unknown>).contextId === input.contextId,
+          );
+        });
       if (contextMessage) {
-        await messageRepository.saveMessage(this.db, {
+        messageRepository.saveMessage(this.db, {
           ...contextMessage.info,
           metadata: {
             ...(contextMessage.info.metadata ?? {}),
