@@ -21,6 +21,12 @@ This file is maintained by the release workflow; each release prepends a bilingu
   - _EN:_
     - Both READMEs now use the Yoyo Code name, replace upstream community links with this repository, and document the .yoyo-code data and install directories.
 
+### 其它变更
+
+- macOS 14 runner 镜像退役导致发布任务被取消，Release 工作流迁移到 macos-15。
+  - _EN:_
+    - macOS 14 runner images are being retired, so the release workflow now builds on macos-15.
+
 
 ## English
 
@@ -37,6 +43,12 @@ Release **v3.18.0** (2026-11-01)
 - Both READMEs now use the Yoyo Code name, replace upstream community links with this repository, and document the .yoyo-code data and install directories.
   - _中文：_
     - 中英文 README 的产品名统一为 Yoyo Code，并修正过时的数据目录与安装目录。
+
+### Other Changes
+
+- macOS 14 runner images are being retired, so the release workflow now builds on macos-15.
+  - _中文：_
+    - macOS 14 runner 镜像退役导致发布任务被取消，Release 工作流迁移到 macos-15。
 
 
 ---
