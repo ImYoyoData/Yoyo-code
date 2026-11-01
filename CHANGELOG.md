@@ -26,6 +26,11 @@ Release **v3.19.0** (2026-11-01)
   - _中文：_
     - 新增本地流式语音输入，边说边出字，音频不上传云端。
 
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.18.0...v3.19.0
+
 ## v3.18.0 — 2026-11-01
 
 ## 中文
@@ -50,7 +55,6 @@ Release **v3.19.0** (2026-11-01)
   - _EN:_
     - macOS 14 runner images are being retired, so the release workflow now builds on macos-15.
 
-
 ## English
 
 Release **v3.18.0** (2026-11-01)
@@ -72,7 +76,6 @@ Release **v3.18.0** (2026-11-01)
 - macOS 14 runner images are being retired, so the release workflow now builds on macos-15.
   - _中文：_
     - macOS 14 runner 镜像退役导致发布任务被取消，Release 工作流迁移到 macos-15。
-
 
 ---
 
