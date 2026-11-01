@@ -3241,6 +3241,24 @@ export function SessionPane({
     [dispatchCommand, focusTimelineToLatest, sessionId],
   );
 
+  const handleSendQueuedGuide = useCallback(
+    (queueItemId: string) => {
+      const current = snapshotRef.current;
+      if (!sessionId || current === null) return;
+      // guide 不抢占当前 turn，因此不触发“滚动到底部”；是否 steer 或回退队列由 CLI 裁决。
+      void dispatchCommand("sendQueuedGuide", { queueItemId }, sessionId, current.revision).then(
+        (ack) => {
+          if (ack.status !== "accepted" && ack.status !== "noop") {
+            logger.warn(
+              `[v4-pane] sendQueuedGuide 被拒绝: ${ack.status} ${ack.reasonCode ?? ""}`,
+            );
+          }
+        },
+      );
+    },
+    [dispatchCommand, sessionId],
+  );
+
   const handleReorderQueueItem = useCallback(
     (queueItemId: string, beforeQueueItemId: string | null) => {
       const current = snapshotRef.current;
@@ -4534,6 +4552,7 @@ export function SessionPane({
             queueEditActiveForCurrentComposer ? queueEditOperation.queueItemId : null
           }
           onSendNow={handleSendQueuedNow}
+          onSendGuide={handleSendQueuedGuide}
           onMoveItem={handleReorderQueueItem}
           onResume={handleResumeQueue}
         />

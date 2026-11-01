@@ -4337,6 +4337,9 @@ const enUS: Record<string, string> = {
   "chat.queue.title": "Queued messages ({count})",
   "chat.queue.drag": "Drag to reorder",
   "chat.queue.sendNow": "Steer",
+  "chat.queue.sendGuide": "Guide",
+  "chat.queue.sendGuide.description":
+    "Guide this message into the current run; it takes effect at the next tool call",
   "chat.queue.runNow": "Run now",
   "chat.queue.edit": "Edit",
   "chat.queue.editDraftConflict":

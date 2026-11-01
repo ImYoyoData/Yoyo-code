@@ -15,13 +15,14 @@ import {
   TID_V4_QUEUE_ITEM,
   TID_V4_QUEUE_ITEM_DELETE,
   TID_V4_QUEUE_ITEM_EDIT,
+  TID_V4_QUEUE_ITEM_SEND_GUIDE,
   TID_V4_QUEUE_ITEM_SEND_NOW,
   TID_V4_QUEUE_PAUSED_BANNER,
   TID_V4_QUEUE_RESUME,
   testId,
 } from "@zcode/shared";
 import type { QueueState } from "@zcode/shared/zcode-protocol-v4";
-import { ArrowUpFromLine, GripVertical, PencilIcon, Trash2Icon } from "lucide-react";
+import { ArrowUpFromLine, CornerDownRight, GripVertical, PencilIcon, Trash2Icon } from "lucide-react";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { Button } from "@/components/ui/button.js";
 import { cn } from "@/components/lib/utils.js";
@@ -38,6 +39,8 @@ interface ConversationQueuePanelProps {
   pendingEditQueueItemId?: string | null;
   /** 立即发送队列项（sendQueuedNow command，stop 当前 + 消费该项）。 */
   onSendNow?: (queueItemId: string) => void;
+  /** 引导发送队列项（sendQueuedGuide command，下一轮工具调用后运行，不中断当前 turn）。 */
+  onSendGuide?: (queueItemId: string) => void;
   /** 拖拽排序项（reorderQueueItem，移动到锚点前；null=队尾）。 */
   onMoveItem?: (queueItemId: string, beforeQueueItemId: string | null) => void;
   /** 暂停队列恢复：CLI setAutoDrain(true)，idle 立即消费、busy 仅武装。 */
@@ -118,6 +121,7 @@ interface QueueRowProps {
   onEditItem?: (queueItemId: string) => Promise<void> | void;
   editPending: boolean;
   onSendNow?: (queueItemId: string) => void;
+  onSendGuide?: (queueItemId: string) => void;
 }
 
 const QueueRow = memo(function QueueRow({
@@ -128,6 +132,7 @@ const QueueRow = memo(function QueueRow({
   onDeleteItem,
   onEditItem,
   onSendNow,
+  onSendGuide,
   editPending,
 }: QueueRowProps) {
   const dispatchLocked = item.dispatch.state !== "queued";
@@ -206,6 +211,34 @@ const QueueRow = memo(function QueueRow({
       >
         <span className="truncate">{isCompact ? "/compact" : item.text}</span>
       </span>
+      {onSendGuide && item.kind === "sendText" ? (
+        <ControlHintTooltip title={intl.formatMessage({ id: "chat.queue.sendGuide.description" })}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="default"
+            data-icon="inline-start"
+            data-testid={testId(TID_V4_QUEUE_ITEM_SEND_GUIDE, item.queueItemId)}
+            data-queue-item-id={item.queueItemId}
+            disabled={rowLocked}
+            onClick={() =>
+              runUserAction({
+                input: {
+                  featureId: "conversation.queue.item",
+                  action: "send_guide",
+                  trigger: "button",
+                },
+                operation: () => onSendGuide(item.queueItemId),
+                completed: { resultSource: "optimistic_projection" },
+                failureStage: "queue_send_guide",
+              })
+            }
+          >
+            <CornerDownRight className="size-3.5" />
+            {intl.formatMessage({ id: "chat.queue.sendGuide" })}
+          </Button>
+        </ControlHintTooltip>
+      ) : null}
       {onSendNow ? (
         <Button
           type="button"
@@ -278,6 +311,7 @@ function ConversationQueuePanelImpl({
   onEditItem,
   pendingEditQueueItemId = null,
   onSendNow,
+  onSendGuide,
   onMoveItem,
   onResume,
 }: ConversationQueuePanelProps) {
@@ -379,6 +413,7 @@ function ConversationQueuePanelImpl({
                 onDeleteItem={onDeleteItem}
                 onEditItem={onEditItem}
                 onSendNow={onSendNow}
+                onSendGuide={onSendGuide}
                 editPending={pendingEditQueueItemId === item.queueItemId}
               />
             ))}

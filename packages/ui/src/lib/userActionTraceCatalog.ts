@@ -9,7 +9,7 @@ export const CORE_USER_ACTION_FEATURES = {
   "conversation.composer.message": ["send", "stop"],
   "conversation.composer.attachment": ["add", "remove", "retry_upload"],
   "conversation.composer.config": ["change_model", "change_thought_level", "change_mode"],
-  "conversation.queue.item": ["send_now", "edit", "remove", "reorder"],
+  "conversation.queue.item": ["send_now", "send_guide", "edit", "remove", "reorder"],
   "conversation.queue.policy": [
     "resume",
     "toggle_auto_drain",
