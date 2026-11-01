@@ -46,6 +46,11 @@ Release **v3.17.0** (2026-11-01)
     - 修复 SQLite 事务内 await 让其他会话写入混入同一连接事务、并被 fork 回滚一起撤销的问题，重启后会导致会话与历史丢失。
     - 会话存储内部仓库改为同步，新增并发写入 + 提交前故障注入的回归测试。
 
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.16.0...v3.17.0
+
 ## v3.16.0 — 2026-10-21
 
 ## 中文
@@ -84,7 +89,6 @@ Release **v3.17.0** (2026-11-01)
     - The dialog now shows the real failure reason instead of a single generic message, so a missing model, a failed request and non-Conventional output are distinguishable.
     - Added 5 regression tests covering the preference order, option preservation, fallback, model-unavailable and invalid-output paths.
 
-
 ## English
 
 Release **v3.16.0** (2026-10-21)
@@ -120,7 +124,6 @@ Release **v3.16.0** (2026-10-21)
   - Added 5 regression tests covering the preference order, option preservation, fallback, model-unavailable and invalid-output paths.
   - _中文：_
     - 生成提交消息改用当前会话选中的模型，并显示真实失败原因
-
 
 ---
 
