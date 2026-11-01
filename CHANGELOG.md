@@ -3,6 +3,49 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.17.0 — 2026-11-01
+
+## 中文
+
+版本 **v3.17.0**（2026-11-01）
+
+### 新功能
+
+- 通用执行可请求只保留每路输出最后 n 字节，长输出场景不必把全文塞进上下文；未请求时结果形状不变。
+  - 尾部按块保存、结算时一次拼接，与 inline 截断和进程退出行为互不影响。
+  - _EN:_
+    - Generic executions can request the last n bytes of each stream, so long outputs no longer have to be fed into the context in full; the result shape is unchanged when not requested.
+    - The tail is kept in chunks and joined once at settlement, independent of the inline cap and process exit.
+
+### 问题修复
+
+- 修复 SQLite 事务内 await 让其他会话写入混入同一连接事务、并被 fork 回滚一起撤销的问题，重启后会导致会话与历史丢失。
+  - 会话存储内部仓库改为同步，新增并发写入 + 提交前故障注入的回归测试。
+  - _EN:_
+    - Fixed awaits inside DatabaseSync transactions that let other sessions' writes join the same connection transaction and be erased by a fork rollback, losing sessions and history after restart.
+    - Session-store repositories are synchronous again, covered by a concurrent write plus pre-commit fault-injection regression.
+
+
+## English
+
+Release **v3.17.0** (2026-11-01)
+
+### Features
+
+- Generic executions can request the last n bytes of each stream, so long outputs no longer have to be fed into the context in full; the result shape is unchanged when not requested.
+  - The tail is kept in chunks and joined once at settlement, independent of the inline cap and process exit.
+  - _中文：_
+    - 通用执行可请求只保留每路输出最后 n 字节，长输出场景不必把全文塞进上下文；未请求时结果形状不变。
+    - 尾部按块保存、结算时一次拼接，与 inline 截断和进程退出行为互不影响。
+
+### Fixes
+
+- Fixed awaits inside DatabaseSync transactions that let other sessions' writes join the same connection transaction and be erased by a fork rollback, losing sessions and history after restart.
+  - Session-store repositories are synchronous again, covered by a concurrent write plus pre-commit fault-injection regression.
+  - _中文：_
+    - 修复 SQLite 事务内 await 让其他会话写入混入同一连接事务、并被 fork 回滚一起撤销的问题，重启后会导致会话与历史丢失。
+    - 会话存储内部仓库改为同步，新增并发写入 + 提交前故障注入的回归测试。
+
 ## v3.16.0 — 2026-10-21
 
 ## 中文
