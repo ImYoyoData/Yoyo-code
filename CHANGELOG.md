@@ -29,6 +29,10 @@ Release **v3.19.1** (2026-11-02)
 
 1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
 
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.19.0...v3.19.1
+
 ## v3.19.0 — 2026-11-01
 
 ## 中文
@@ -41,7 +45,6 @@ Release **v3.19.1** (2026-11-02)
   - _EN:_
     - Local streaming voice input in the composer: partial text appears as you speak and stays local.
 
-
 ## English
 
 Release **v3.19.0** (2026-11-01)
@@ -51,7 +54,6 @@ Release **v3.19.0** (2026-11-01)
 - Local streaming voice input in the composer: partial text appears as you speak and stays local.
   - _中文：_
     - 新增本地流式语音输入，边说边出字，音频不上传云端。
-
 
 ---
 
