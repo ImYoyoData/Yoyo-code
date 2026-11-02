@@ -3,6 +3,32 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.19.3 — 2026-11-02
+
+## 中文
+
+版本 **v3.19.3**（2026-11-02）
+
+### 问题修复
+
+- 修复提示气泡遮挡并增加队列快捷键
+
+
+## English
+
+Release **v3.19.3** (2026-11-02)
+
+### Fixes
+
+- 修复提示气泡遮挡并增加队列快捷键
+
+
+---
+
+1 条提交只写了单一语言，因此只显示原文。在提交信息正文里加 `EN:` / `ZH:` 行即可同时生成两种语言。
+
+1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
+
 ## v3.19.2 — 2026-11-02
 
 ## 中文
