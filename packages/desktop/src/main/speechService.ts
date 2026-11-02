@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { getZCodeDataRootDir } from "@zcode/services/node";
 import {
+  type SpeechAssetStatus,
   type SpeechPrepareProgress,
   type SpeechPrepareResult,
 } from "@zcode/shared";
@@ -12,6 +13,12 @@ import { downloadSpeechFile, extractSpeechArchive } from "./speechDownload.js";
 
 const RUNTIME_VERSION = "1.4.3";
 const RUNTIME_BASE_URL = `https://github.com/RapidAI/RapidSpeech.cpp/releases/download/v${RUNTIME_VERSION}`;
+/** 国内网络访问 GitHub 失败时依次尝试的加速前缀。 */
+const RUNTIME_MIRROR_PREFIXES = [
+  "https://gh-proxy.com/",
+  "https://ghproxy.net/",
+  "https://ghfast.top/",
+];
 
 interface RuntimeAsset {
   archive: string;
@@ -58,11 +65,53 @@ interface RunningSpeechServer {
 export class DesktopSpeechService {
   private server: RunningSpeechServer | null = null;
   private prepareInFlight: Promise<SpeechPrepareResult> | null = null;
+  private assetsInFlight: Promise<SpeechAssetStatus> | null = null;
+  private lastAssetError: string | undefined;
   private lastStderr = "";
 
   constructor(
     private readonly onProgress: (progress: SpeechPrepareProgress) => void = () => {},
   ) {}
+
+  async getStatus(): Promise<SpeechAssetStatus> {
+    const key = `${process.platform}-${process.arch}`;
+    const asset = RUNTIME_ASSETS[key];
+    if (!asset) {
+      return {
+        supported: false,
+        runtimeReady: false,
+        modelReady: false,
+        ready: false,
+        reason: "unsupported_platform",
+      };
+    }
+    const runtimeReady =
+      (await this.findFile(
+        join(getZCodeDataRootDir(), "speech", "runtime", `${RUNTIME_VERSION}-${key}`),
+        asset.binary,
+      )) !== null;
+    const modelReady =
+      (await this.findFile(
+        join(getZCodeDataRootDir(), "speech", "models"),
+        XASR_MODEL.fileName,
+      )) !== null;
+    const ready = runtimeReady && modelReady;
+    return {
+      supported: true,
+      runtimeReady,
+      modelReady,
+      ready,
+      ...(!ready && this.lastAssetError ? { reason: this.lastAssetError } : {}),
+    };
+  }
+
+  async ensureAssets(): Promise<SpeechAssetStatus> {
+    if (this.assetsInFlight) return this.assetsInFlight;
+    this.assetsInFlight = this.doEnsureAssets().finally(() => {
+      this.assetsInFlight = null;
+    });
+    return this.assetsInFlight;
+  }
 
   async prepare(): Promise<SpeechPrepareResult> {
     if (this.server) {
@@ -92,21 +141,46 @@ export class DesktopSpeechService {
     });
   }
 
-  private async doPrepare(): Promise<SpeechPrepareResult> {
+  private async doEnsureAssets(): Promise<SpeechAssetStatus> {
     const key = `${process.platform}-${process.arch}`;
     const asset = RUNTIME_ASSETS[key];
     if (!asset) {
-      return { supported: false, reason: "unsupported_platform" };
+      return this.getStatus();
     }
+    try {
+      this.lastAssetError = undefined;
+      await this.ensureRuntime(key, asset);
+      await this.ensureModel();
+      return this.getStatus();
+    } catch (error) {
+      this.lastAssetError = error instanceof Error ? error.message : "speech_asset_failed";
+      logger.error("[speech] asset preparation failed", {
+        error: this.lastAssetError,
+        stderr: this.lastStderr,
+      });
+      return this.getStatus();
+    }
+  }
+
+  private async doPrepare(): Promise<SpeechPrepareResult> {
+    const assets = await this.ensureAssets();
+    if (!assets.supported) {
+      return { supported: false, reason: assets.reason ?? "unsupported_platform" };
+    }
+    if (!assets.ready) {
+      return { supported: false, reason: assets.reason ?? "speech_assets_not_ready" };
+    }
+    const key = `${process.platform}-${process.arch}`;
+    const asset = RUNTIME_ASSETS[key]!;
     try {
       const runtime = await this.ensureRuntime(key, asset);
       const modelPath = await this.ensureModel();
       const wsUrl = await this.startServer(runtime.binary, modelPath);
       return { supported: true, wsUrl };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error("[speech] prepare failed", { error: message, stderr: this.lastStderr });
-      return { supported: false, reason: message };
+      const reason = error instanceof Error ? error.message : "speech_prepare_failed";
+      logger.error("[speech] prepare failed", { error: reason, stderr: this.lastStderr });
+      return { supported: false, reason };
     }
   }
 
@@ -124,15 +198,35 @@ export class DesktopSpeechService {
     await mkdir(root, { recursive: true });
     const archivePath = join(root, asset.archive);
     this.emitProgress({ phase: "runtime" });
-    await downloadSpeechFile(
-      `${RUNTIME_BASE_URL}/${asset.archive}`,
-      archivePath,
-      asset.sha256,
-      (receivedBytes, totalBytes) =>
-        this.emitProgress({ phase: "runtime", receivedBytes, totalBytes, ...percent(receivedBytes, totalBytes) }),
-    );
     try {
-      await extractSpeechArchive(archivePath, root);
+      await downloadSpeechFile(
+        `${RUNTIME_BASE_URL}/${asset.archive}`,
+        archivePath,
+        asset.sha256,
+        (receivedBytes, totalBytes) =>
+          this.emitProgress({
+            phase: "runtime",
+            receivedBytes,
+            totalBytes,
+            ...percent(receivedBytes, totalBytes),
+          }),
+        RUNTIME_MIRROR_PREFIXES,
+      );
+    } catch (error) {
+      logger.error("[speech] runtime download failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error("runtime_download_failed");
+    }
+    try {
+      try {
+        await extractSpeechArchive(archivePath, root);
+      } catch (error) {
+        logger.error("[speech] runtime archive extraction failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new Error("runtime_extract_failed");
+      }
     } finally {
       await rm(archivePath, { force: true });
     }
@@ -152,14 +246,25 @@ export class DesktopSpeechService {
 
     await mkdir(root, { recursive: true });
     this.emitProgress({ phase: "model" });
-    await downloadSpeechFile(XASR_MODEL.url, modelPath, XASR_MODEL.sha256, (receivedBytes, totalBytes) =>
-      this.emitProgress({
-        phase: "model",
-        receivedBytes,
-        totalBytes,
-        ...percent(receivedBytes, totalBytes ?? XASR_MODEL.bytes),
-      }),
-    );
+    try {
+      await downloadSpeechFile(
+        XASR_MODEL.url,
+        modelPath,
+        XASR_MODEL.sha256,
+        (receivedBytes, totalBytes) =>
+          this.emitProgress({
+            phase: "model",
+            receivedBytes,
+            totalBytes,
+            ...percent(receivedBytes, totalBytes ?? XASR_MODEL.bytes),
+          }),
+      );
+    } catch (error) {
+      logger.error("[speech] model download failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error("model_download_failed");
+    }
     return modelPath;
   }
 
@@ -204,7 +309,10 @@ export class DesktopSpeechService {
     if (!ready) {
       this.server = null;
       child.kill();
-      throw new Error(`speech runtime did not become ready: ${this.lastStderr.trim() || "timeout"}`);
+      logger.error("[speech] runtime did not become ready", {
+        stderr: this.lastStderr.trim() || "timeout",
+      });
+      throw new Error("runtime_start_failed");
     }
     logger.info("[speech] runtime ready", { wsPort });
     return this.server.wsUrl;

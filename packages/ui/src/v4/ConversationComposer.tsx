@@ -139,6 +139,7 @@ import { usePrimaryFollowupModifier } from "@/v4/composer/usePrimaryFollowupModi
 import { consumeV4ComposerDraftWorkspaceTransferRequest } from "@/v4/composer/composerDraftWorkspaceTransfer.js";
 import { useComposerAttachments } from "@/v4/composer/useComposerAttachments.js";
 import { useSpeechDictation } from "@/v4/composer/useSpeechDictation.js";
+import { useSettings } from "@/hooks/useSettingService.js";
 import type { ConversationDropTargetController } from "@/v4/composer/conversationDropTarget.js";
 import { CodeCommentAttachmentChip } from "@/v4/composer/CodeCommentAttachmentChip.js";
 import { removeCodeCommentPreview } from "@/v4/composer/codeCommentPreviewSync.js";
@@ -627,6 +628,8 @@ function ConversationComposerImpl({
     restoreBaseText: (text) => inputApiRef.current?.setText(text),
     focusEditor: () => inputApiRef.current?.focus(),
   });
+  const { settings: appSpeechSettings } = useSettings();
+  const speechInputEnabled = appSpeechSettings?.speechInputEnabled === true;
 
   // ── 附件全链路（选择/粘贴/拖拽/画板/预传/门禁）──
   const attachmentsApi = useComposerAttachments({
@@ -2118,7 +2121,7 @@ function ConversationComposerImpl({
             onSendCompressionCommand={onSendCompressionCommand}
           />
         </span>
-        {speech.supported ? (
+        {speech.supported && speechInputEnabled ? (
           <ControlHintTooltip title={intl.formatMessage({ id: speechTooltipId })}>
             <Button
               type="button"
@@ -2211,6 +2214,7 @@ function ConversationComposerImpl({
       showStopControl,
       speech.supported,
       speech.status,
+      speechInputEnabled,
       speechBusy,
       speechTooltipId,
       stopTooltipTitle,

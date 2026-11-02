@@ -220,6 +220,7 @@ export type {
   SSHConfigAliasOption,
   SpeechPrepareProgress,
   SpeechPrepareResult,
+  SpeechAssetStatus,
   TaskNotificationPayload,
   UpdateCheckResultPayload,
   UpdateStatePayload,

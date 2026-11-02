@@ -712,6 +712,7 @@ export function SettingsPage({
   const [toolGroupingChangesEnabled, setToolGroupingChangesEnabled] = useState(false);
   const [zcodeInteractionBehavior, setZCodeInteractionBehavior] =
     useState<ZCodeInteractionBehavior>("queue");
+  const [speechInputEnabled, setSpeechInputEnabled] = useState(false);
   const [defaultHomeDir, setDefaultHomeDir] = useState("");
   const [hostPlatform, setHostPlatform] = useState("");
 
@@ -795,6 +796,7 @@ export function SettingsPage({
         setToolGroupingTerminalEnabled(settings.toolGroupingTerminalEnabled ?? true);
         setToolGroupingChangesEnabled(settings.toolGroupingChangesEnabled ?? false);
         setZCodeInteractionBehavior(settings.zcodeInteractionBehavior ?? "queue");
+        setSpeechInputEnabled(settings.speechInputEnabled === true);
       })
       .catch(() => {});
     // 这里配置的是本地全局设置。远端 workspace 激活时 useServices()
@@ -828,6 +830,7 @@ export function SettingsPage({
     setToolGroupingTerminalEnabled(sharedSettings.toolGroupingTerminalEnabled ?? true);
     setToolGroupingChangesEnabled(sharedSettings.toolGroupingChangesEnabled ?? false);
     setZCodeInteractionBehavior(sharedSettings.zcodeInteractionBehavior ?? "queue");
+    setSpeechInputEnabled(sharedSettings.speechInputEnabled === true);
     setReceivePreviewUpdates(sharedSettings.receivePreviewUpdates ?? false);
     setAutoDownloadAndInstallUpdates(sharedSettings.autoDownloadAndInstallUpdates ?? false);
   }, [sharedSettings]);
@@ -1261,6 +1264,22 @@ export function SettingsPage({
         completed: { resultSource: "shared_settings", valueAfter: behavior },
       });
       setZCodeInteractionBehavior(behavior);
+    },
+    [updateSharedSettings],
+  );
+  const handleSpeechInputEnabledChange = useCallback(
+    async (enabled: boolean) => {
+      await runSettingsActionAsync({
+        featureId: "settings.speech",
+        action: "toggle_enabled",
+        trigger: "switch",
+        operation: () => updateSharedSettings({ speechInputEnabled: enabled }),
+        completed: {
+          resultSource: "shared_settings",
+          stateAfter: enabled ? "enabled" : "disabled",
+        },
+      });
+      setSpeechInputEnabled(enabled);
     },
     [updateSharedSettings],
   );
@@ -1718,6 +1737,8 @@ export function SettingsPage({
                             toolGroupingTerminalEnabled={toolGroupingTerminalEnabled}
                             toolGroupingChangesEnabled={toolGroupingChangesEnabled}
                             zcodeInteractionBehavior={zcodeInteractionBehavior}
+                            speechInputEnabled={speechInputEnabled}
+                            onSpeechInputEnabledChange={handleSpeechInputEnabledChange}
                             askUserQuestionAutoResolutionEnabled={
                               askUserQuestionAutoResolutionEnabled
                             }
