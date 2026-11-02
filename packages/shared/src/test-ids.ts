@@ -405,10 +405,6 @@ export const TID_SETTINGS_MEMORY_PREVIEW = "settings-memory-preview";
 /** 常规设置中的 AskUserQuestion 自动继续开关 */
 export const TID_SETTINGS_ASK_USER_QUESTION_AUTO_RESOLUTION_SWITCH =
   "settings-ask-user-question-auto-resolution-switch";
-/** 常规设置中的本地语音输入开关 */
-export const TID_SETTINGS_SPEECH_SWITCH = "settings-speech-switch";
-/** 常规设置中的语音运行时/模型下载按钮 */
-export const TID_SETTINGS_SPEECH_DOWNLOAD = "settings-speech-download";
 /** 设置页通用分区的界面语言下拉触发器 */
 export const TID_SETTINGS_LOCALE_SELECT_TRIGGER = "settings-locale-select-trigger";
 /** 设置页通用分区的界面语言下拉项（动态后缀为 locale preference） */
@@ -543,8 +539,6 @@ export const TID_V4_COMPOSER_BACKGROUND_WORK_TRIGGER = "v4-composer-background-w
 export const TID_V4_COMPOSER_CUA_ENTRY = "v4-composer-cua-entry";
 /** v4 composer 发送按钮 */
 export const TID_V4_COMPOSER_SEND = "v4-composer-send";
-/** v4 本地语音听写按钮 */
-export const TID_V4_COMPOSER_SPEECH = "v4-composer-speech";
 /** v4 暂停队列发送确认：清空队列并发送 */
 export const TID_V4_COMPOSER_CLEAR_QUEUE_SEND = "v4-composer-clear-queue-send";
 /** v4 暂停队列发送确认：保留队列并发送 */

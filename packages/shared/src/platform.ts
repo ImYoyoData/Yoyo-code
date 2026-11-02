@@ -248,32 +248,6 @@ export interface CreateTempTextAttachmentResult {
   sizeBytes: number;
 }
 
-export interface SpeechPrepareProgress {
-  phase: "runtime" | "model" | "starting";
-  receivedBytes?: number;
-  totalBytes?: number;
-  /** 0-100；total 未知时缺席。 */
-  percent?: number;
-}
-
-export interface SpeechPrepareResult {
-  supported: boolean;
-  /** 流式 ASR WebSocket 地址（supported 时存在）。 */
-  wsUrl?: string;
-  /** supported=false 或失败时的原因码。 */
-  reason?: string;
-}
-
-export interface SpeechAssetStatus {
-  supported: boolean;
-  runtimeReady: boolean;
-  modelReady: boolean;
-  /** 运行时与模型都就绪，设置开关才能打开。 */
-  ready: boolean;
-  /** 最近一次失败的原因码（下载/校验/启动）。 */
-  reason?: string;
-}
-
 export type SaveFileRequest =
   | {
       data: ArrayBuffer;
@@ -583,21 +557,6 @@ export interface IPlatformService {
   createTempTextAttachment?(
     payload: CreateTempTextAttachmentRequest,
   ): Promise<CreateTempTextAttachmentResult>;
-
-  /**
-   * 桌面端本地语音听写：确保 RapidSpeech 运行时与 X-ASR 模型就绪，返回流式 ASR
-   * WebSocket。Web/手机端不实现（按钮隐藏）。
-   */
-  speechPrepare?(): Promise<SpeechPrepareResult>;
-
-  /** 只检查运行时/模型是否就绪，不下载、不启动服务。 */
-  speechGetStatus?(): Promise<SpeechAssetStatus>;
-
-  /** 下载运行时/模型（不启动服务）；设置页开关就绪判定使用。 */
-  speechEnsureAssets?(): Promise<SpeechAssetStatus>;
-
-  /** 订阅语音运行时/模型准备进度，返回 disposer。 */
-  onSpeechProgress?(handler: (progress: SpeechPrepareProgress) => void): () => void;
 
   /** 订阅当前窗口内远程连接过程日志，返回 disposer */
   onRemoteConnectionLog(handler: (entry: RemoteConnectionRuntimeLog) => void): () => void;

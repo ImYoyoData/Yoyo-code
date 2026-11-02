@@ -7,7 +7,6 @@ export const CORE_USER_ACTION_FEATURES = {
   "task.lifecycle": ["create", "open", "archive", "rename", "delete"],
   "task.layout": ["open_split", "split_right", "split_down", "close_pane"],
   "conversation.composer.message": ["send", "stop"],
-  "conversation.composer.speech": ["start", "stop"],
   "conversation.composer.attachment": ["add", "remove", "retry_upload"],
   "conversation.composer.config": ["change_model", "change_thought_level", "change_mode"],
   "conversation.queue.item": ["send_now", "send_guide", "edit", "remove", "reorder"],
@@ -84,7 +83,6 @@ export const SETTINGS_USER_ACTION_FEATURES = {
     "toggle_changes_grouping",
   ],
   "settings.task": ["toggle_auto_archive", "change_auto_archive_days"],
-  "settings.speech": ["toggle_enabled"],
   "settings.storage": ["change_data_directory"],
   "settings.memory": ["toggle_memory", "refresh_memory", "change_memory_scope"],
   "settings.browser": [

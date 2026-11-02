@@ -10,7 +10,6 @@ import {
   TID_SETTINGS_NATIVE_SEARCH_SWITCH,
 } from "@zcode/shared";
 import { useState, useCallback, useEffect } from "react";
-import type { IPlatformService } from "@zcode/shared";
 import {
   TID_SETTINGS_LOCALE_SELECT_ITEM,
   TID_SETTINGS_LOCALE_SELECT_TRIGGER,
@@ -27,7 +26,6 @@ import { Switch } from "@/components/ui/switch.js";
 import { Input } from "@/components/ui/input.js";
 import { Button } from "@/components/ui/button.js";
 import { SettingsBadge, SettingsGroupCard, SettingsRow } from "@/settings/SettingsPageParts.js";
-import { SpeechInputSetting } from "@/settings/SpeechInputSetting.js";
 import { DataBaseDirControl } from "@/settings/DataBaseDirControl.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useOptionalServices } from "@/hooks/useServices.js";
@@ -70,7 +68,6 @@ export function GeneralSectionContent({
   isDesktop,
   isWindowsDesktop,
   showIntegratedTerminalShell = false,
-  platform,
   setLocalePreference,
   setNotificationEnabled,
   setNotificationSoundEnabled,
@@ -82,7 +79,6 @@ export function GeneralSectionContent({
   toolGroupingTerminalEnabled,
   toolGroupingChangesEnabled,
   zcodeInteractionBehavior,
-  speechInputEnabled = false,
   askUserQuestionAutoResolutionEnabled = true,
   modelIoFullRetentionEnabled = false,
   onDataBaseDirChange,
@@ -107,7 +103,6 @@ export function GeneralSectionContent({
   onToolGroupingTerminalEnabledChange,
   onToolGroupingChangesEnabledChange,
   onZCodeInteractionBehaviorChange,
-  onSpeechInputEnabledChange = async () => {},
   onAskUserQuestionAutoResolutionEnabledChange = async () => {},
   onModelIoFullRetentionEnabledChange = async () => {},
   onOpenOnboardingDialog,
@@ -135,7 +130,6 @@ export function GeneralSectionContent({
   isDesktop?: boolean;
   isWindowsDesktop?: boolean;
   showIntegratedTerminalShell?: boolean;
-  platform?: IPlatformService;
   setLocalePreference: (locale: LocalePreference) => void;
   setNotificationEnabled: (enabled: boolean) => void;
   setNotificationSoundEnabled: (enabled: boolean) => void;
@@ -147,7 +141,6 @@ export function GeneralSectionContent({
   toolGroupingTerminalEnabled: boolean;
   toolGroupingChangesEnabled: boolean;
   zcodeInteractionBehavior: ZCodeInteractionBehavior;
-  speechInputEnabled?: boolean;
   askUserQuestionAutoResolutionEnabled?: boolean;
   modelIoFullRetentionEnabled?: boolean;
   onDataBaseDirChange: (dir: string) => Promise<void>;
@@ -172,7 +165,6 @@ export function GeneralSectionContent({
   onToolGroupingTerminalEnabledChange: (enabled: boolean) => Promise<void>;
   onToolGroupingChangesEnabledChange: (enabled: boolean) => Promise<void>;
   onZCodeInteractionBehaviorChange: (behavior: ZCodeInteractionBehavior) => Promise<void>;
-  onSpeechInputEnabledChange?: (enabled: boolean) => Promise<void>;
   onAskUserQuestionAutoResolutionEnabledChange?: (enabled: boolean) => Promise<void>;
   onModelIoFullRetentionEnabledChange?: (enabled: boolean) => Promise<void>;
   onOpenOnboardingDialog: () => void;
@@ -814,12 +806,6 @@ export function GeneralSectionContent({
           }
         />
       </SettingsGroupCard>
-
-      <SpeechInputSetting
-        enabled={speechInputEnabled}
-        onEnabledChange={onSpeechInputEnabledChange}
-        platform={platform}
-      />
 
       <SettingsGroupCard>
         <SettingsRow
