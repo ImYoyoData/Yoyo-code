@@ -73,6 +73,7 @@ import type {
   WindowControlsOverlayMetrics,
   WindowControlsOverlayReadyPayload,
   CreateTempTextAttachmentRequest,
+  SpeechAssetStatus,
   SpeechPrepareProgress,
   SpeechPrepareResult,
   OpenCuaPermissionOnboardingOptions,
@@ -312,6 +313,12 @@ contextBridge.exposeInMainWorld("zcode", {
   /** 本地语音听写：准备运行时/模型，返回流式 ASR WebSocket */
   speechPrepare: (): Promise<SpeechPrepareResult> =>
     ipcRenderer.invoke(PlatformChannels.SpeechPrepare),
+  /** 本地语音听写：检查运行时/模型是否就绪 */
+  speechGetStatus: (): Promise<SpeechAssetStatus> =>
+    ipcRenderer.invoke(PlatformChannels.SpeechGetStatus),
+  /** 本地语音听写：下载运行时/模型（不启动服务） */
+  speechEnsureAssets: (): Promise<SpeechAssetStatus> =>
+    ipcRenderer.invoke(PlatformChannels.SpeechEnsureAssets),
   /** 订阅语音运行时/模型下载与加载进度 */
   onSpeechProgress: (callback: (progress: SpeechPrepareProgress) => void) => {
     const handler = (_event: unknown, payload: unknown) =>

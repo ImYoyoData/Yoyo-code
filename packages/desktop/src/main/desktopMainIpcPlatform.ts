@@ -18,6 +18,7 @@ import {
   type OpenInEditorOptions,
   type SaveCliMcpToUserDirectoryRequest,
   type CreateTempTextAttachmentRequest,
+  type SpeechAssetStatus,
   type SpeechPrepareResult,
   type UpdateStatePayload,
   type WindowControlsOverlayReadyPayload,
@@ -94,7 +95,11 @@ export function registerPlatformIpcHandlers(options: {
   /** 桌面端设备标识符（基于 userData 路径的 SHA-256） */
   deviceMid: string;
   /** 本地语音听写运行时/模型管理（主进程单例）。 */
-  speechService: { prepare(): Promise<SpeechPrepareResult> };
+  speechService: {
+    prepare(): Promise<SpeechPrepareResult>;
+    getStatus(): Promise<SpeechAssetStatus>;
+    ensureAssets(): Promise<SpeechAssetStatus>;
+  };
   /** CDP-on-guest pivot：renderer `<webview>` 上报 guest webContentsId → main attach。 */
   attachBrowserGuest?: AttachBrowserGuest;
   /** renderer 自由尺寸变化 → 当前窗口所属的受控 tab。 */
@@ -105,6 +110,10 @@ export function registerPlatformIpcHandlers(options: {
   browserViewResidencyHandlers?: BrowserViewResidencyIpcHandlers;
 }) {
   ipcMain.handle(PlatformChannels.SpeechPrepare, async () => options.speechService.prepare());
+  ipcMain.handle(PlatformChannels.SpeechGetStatus, async () => options.speechService.getStatus());
+  ipcMain.handle(PlatformChannels.SpeechEnsureAssets, async () =>
+    options.speechService.ensureAssets(),
+  );
 
   ipcMain.handle(PlatformChannels.SelectDirectory, async () => {
     const result = await dialog.showOpenDialog({

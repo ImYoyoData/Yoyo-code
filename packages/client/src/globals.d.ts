@@ -98,6 +98,10 @@ declare global {
       printPageToPdf?(): Promise<import("@zcode/shared").PrintPageToPdfResult>;
       /** 本地语音听写：准备运行时/模型并返回流式 ASR WebSocket */
       speechPrepare?(): Promise<import("@zcode/shared").SpeechPrepareResult>;
+      /** 本地语音听写：检查运行时/模型是否就绪 */
+      speechGetStatus?(): Promise<import("@zcode/shared").SpeechAssetStatus>;
+      /** 本地语音听写：下载运行时/模型（不启动服务） */
+      speechEnsureAssets?(): Promise<import("@zcode/shared").SpeechAssetStatus>;
       /** 订阅语音运行时/模型下载与加载进度 */
       onSpeechProgress?(
         handler: (progress: import("@zcode/shared").SpeechPrepareProgress) => void,

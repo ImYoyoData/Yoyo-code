@@ -11,26 +11,67 @@ const execFileAsync = promisify(execFile);
 
 export type SpeechDownloadProgress = (receivedBytes: number, totalBytes?: number) => void;
 
+const DOWNLOAD_CONNECT_TIMEOUT_MS = 5_000;
+const CURL_CONNECT_TIMEOUT_SECONDS = 5;
+
 /**
  * 下载语音运行时/模型并校验 SHA256。
  *
- * Node fetch 默认不读 env proxy；宿主环境设置了 http_proxy 时可能连不上 GitHub。
- * 系统 curl 能复用用户代理配置，因此 fetch 失败时用 curl 重试一次。
+ * 下载源按顺序尝试：原始 URL（国际网络）→ 调用方提供的镜像前缀（国内网络）。
+ * 每个源先试 Node fetch，失败后用系统 curl 重试（curl 会复用用户代理设置）。
  */
 export async function downloadSpeechFile(
   url: string,
   destination: string,
   expectedSha256: string,
   onProgress: SpeechDownloadProgress,
+  mirrorPrefixes: readonly string[] = [],
 ): Promise<void> {
+  let lastError: unknown;
+  for (const source of [url, ...mirrorPrefixes.map((prefix) => `${prefix}${url}`)]) {
+    try {
+      await downloadCandidate(source, destination, expectedSha256, onProgress);
+      return;
+    } catch (error) {
+      lastError = error;
+      logger.warn("[speech] download source failed", {
+        source,
+        error: error instanceof Error ? error.message : String(error),
+        cause: error instanceof Error && error.cause ? String(error.cause) : "",
+      });
+    }
+  }
+  throw new Error("speech_download_failed");
+}
+
+async function downloadCandidate(
+  url: string,
+  destination: string,
+  expectedSha256: string,
+  onProgress: SpeechDownloadProgress,
+): Promise<void> {
+  onProgress(0);
   try {
-    await downloadWithFetch(url, destination, expectedSha256, onProgress);
+    await downloadWithFetch(
+      url,
+      destination,
+      expectedSha256,
+      onProgress,
+      DOWNLOAD_CONNECT_TIMEOUT_MS,
+    );
+    return;
   } catch (error) {
     logger.warn("[speech] fetch download failed; retrying with curl", {
       error: error instanceof Error ? error.message : String(error),
       cause: error instanceof Error && error.cause ? String(error.cause) : "",
     });
-    await downloadWithCurl(url, destination, expectedSha256, onProgress);
+    await downloadWithCurl(
+      url,
+      destination,
+      expectedSha256,
+      onProgress,
+      CURL_CONNECT_TIMEOUT_SECONDS,
+    );
   }
 }
 
@@ -72,11 +113,20 @@ async function downloadWithFetch(
   destination: string,
   expectedSha256: string,
   onProgress: SpeechDownloadProgress,
+  connectTimeoutMs: number,
 ): Promise<void> {
-  const response = await fetch(url, {
-    redirect: "follow",
-    headers: { "user-agent": "YoyoCode-Desktop" },
-  });
+  const controller = new AbortController();
+  const connectTimer = setTimeout(() => controller.abort(), connectTimeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      redirect: "follow",
+      headers: { "user-agent": "YoyoCode-Desktop" },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(connectTimer);
+  }
   if (!response.ok || !response.body) {
     throw new Error(`speech download failed: HTTP ${response.status}`);
   }
@@ -119,6 +169,7 @@ async function downloadWithCurl(
   destination: string,
   expectedSha256: string,
   onProgress: SpeechDownloadProgress,
+  connectTimeoutSeconds: number,
 ): Promise<void> {
   const partPath = `${destination}.part`;
   await mkdir(dirname(destination), { recursive: true });
@@ -131,7 +182,18 @@ async function downloadWithCurl(
   try {
     await execFileAsync(
       curl,
-      ["-fL", "--retry", "2", "--retry-delay", "1", "--connect-timeout", "30", "-o", partPath, url],
+      [
+        "-fL",
+        "--retry",
+        "1",
+        "--retry-delay",
+        "1",
+        "--connect-timeout",
+        String(connectTimeoutSeconds),
+        "-o",
+        partPath,
+        url,
+      ],
       { windowsHide: true, timeout: 600_000, maxBuffer: 1024 * 1024 },
     );
   } catch (error) {

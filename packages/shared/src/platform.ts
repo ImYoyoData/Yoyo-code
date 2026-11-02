@@ -264,6 +264,16 @@ export interface SpeechPrepareResult {
   reason?: string;
 }
 
+export interface SpeechAssetStatus {
+  supported: boolean;
+  runtimeReady: boolean;
+  modelReady: boolean;
+  /** 运行时与模型都就绪，设置开关才能打开。 */
+  ready: boolean;
+  /** 最近一次失败的原因码（下载/校验/启动）。 */
+  reason?: string;
+}
+
 export type SaveFileRequest =
   | {
       data: ArrayBuffer;
@@ -579,6 +589,12 @@ export interface IPlatformService {
    * WebSocket。Web/手机端不实现（按钮隐藏）。
    */
   speechPrepare?(): Promise<SpeechPrepareResult>;
+
+  /** 只检查运行时/模型是否就绪，不下载、不启动服务。 */
+  speechGetStatus?(): Promise<SpeechAssetStatus>;
+
+  /** 下载运行时/模型（不启动服务）；设置页开关就绪判定使用。 */
+  speechEnsureAssets?(): Promise<SpeechAssetStatus>;
 
   /** 订阅语音运行时/模型准备进度，返回 disposer。 */
   onSpeechProgress?(handler: (progress: SpeechPrepareProgress) => void): () => void;
