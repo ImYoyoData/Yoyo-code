@@ -1670,6 +1670,8 @@ const zhCN: Record<string, string> = {
   "settings.shortcuts.command.newTask": "新建任务",
   "settings.shortcuts.command.composerSend": "发送消息",
   "settings.shortcuts.command.composerInsertNewline": "输入框换行",
+  "settings.shortcuts.command.queueSendGuide": "引导发送队列消息",
+  "settings.shortcuts.command.queueSendNow": "立即发送队列消息",
   "settings.shortcuts.command.openWorkspace": "打开工作区",
   "settings.shortcuts.command.closeActiveContext": "关闭当前上下文",
   "settings.shortcuts.command.toggleSidebar": "切换左侧栏",
@@ -4066,6 +4068,7 @@ const zhCN: Record<string, string> = {
   "chat.queue.sendNow": "立即",
   "chat.queue.sendGuide": "引导",
   "chat.queue.sendGuide.description": "把这条消息引导到当前任务，在下一轮工具调用后运行",
+  "chat.queue.sendNow.description": "停止当前回复并立即发送这条队列消息",
   // compact 队列项曾单独显示“立即执行”，与同一队列中的即时动作文案不一致。
   "chat.queue.runNow": "立即",
   "chat.queue.edit": "编辑",

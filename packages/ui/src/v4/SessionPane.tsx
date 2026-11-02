@@ -4555,6 +4555,7 @@ export function SessionPane({
           onSendGuide={handleSendQueuedGuide}
           onMoveItem={handleReorderQueueItem}
           onResume={handleResumeQueue}
+          shortcutsEnabled={focused}
         />
       ) : null}
       {/* v4 权限/问答等待态只是 runtime 的阻塞交互，必须和 composer
