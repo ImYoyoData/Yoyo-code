@@ -96,16 +96,6 @@ declare global {
       ): Promise<import("@zcode/shared").SaveFileResult>;
       /** 将当前页面的 print 媒体版面导出为 PDF（Chromium 打印引擎，矢量文本） */
       printPageToPdf?(): Promise<import("@zcode/shared").PrintPageToPdfResult>;
-      /** 本地语音听写：准备运行时/模型并返回流式 ASR WebSocket */
-      speechPrepare?(): Promise<import("@zcode/shared").SpeechPrepareResult>;
-      /** 本地语音听写：检查运行时/模型是否就绪 */
-      speechGetStatus?(): Promise<import("@zcode/shared").SpeechAssetStatus>;
-      /** 本地语音听写：下载运行时/模型（不启动服务） */
-      speechEnsureAssets?(): Promise<import("@zcode/shared").SpeechAssetStatus>;
-      /** 订阅语音运行时/模型下载与加载进度 */
-      onSpeechProgress?(
-        handler: (progress: import("@zcode/shared").SpeechPrepareProgress) => void,
-      ): () => void;
       /** 从系统拖拽/文件输入得到的 Web File 解析真实本地路径 */
       getPathForFile?(file: File): string | null;
       /** 订阅当前窗口内远程连接过程日志，返回 disposer */

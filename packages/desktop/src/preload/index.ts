@@ -73,9 +73,6 @@ import type {
   WindowControlsOverlayMetrics,
   WindowControlsOverlayReadyPayload,
   CreateTempTextAttachmentRequest,
-  SpeechAssetStatus,
-  SpeechPrepareProgress,
-  SpeechPrepareResult,
   OpenCuaPermissionOnboardingOptions,
   ConfigureFinalArmsCustomEventE2ERequest,
   FinalArmsCustomEventE2EEntry,
@@ -310,22 +307,6 @@ contextBridge.exposeInMainWorld("zcode", {
   /** 长文本粘贴落盘为真正的本地附件，避免正文和 prompt payload 被撑大 */
   createTempTextAttachment: (payload: CreateTempTextAttachmentRequest) =>
     ipcRenderer.invoke(PlatformChannels.CreateTempTextAttachment, payload),
-  /** 本地语音听写：准备运行时/模型，返回流式 ASR WebSocket */
-  speechPrepare: (): Promise<SpeechPrepareResult> =>
-    ipcRenderer.invoke(PlatformChannels.SpeechPrepare),
-  /** 本地语音听写：检查运行时/模型是否就绪 */
-  speechGetStatus: (): Promise<SpeechAssetStatus> =>
-    ipcRenderer.invoke(PlatformChannels.SpeechGetStatus),
-  /** 本地语音听写：下载运行时/模型（不启动服务） */
-  speechEnsureAssets: (): Promise<SpeechAssetStatus> =>
-    ipcRenderer.invoke(PlatformChannels.SpeechEnsureAssets),
-  /** 订阅语音运行时/模型下载与加载进度 */
-  onSpeechProgress: (callback: (progress: SpeechPrepareProgress) => void) => {
-    const handler = (_event: unknown, payload: unknown) =>
-      callback(payload as SpeechPrepareProgress);
-    ipcRenderer.on(PlatformChannels.SpeechProgress, handler);
-    return () => ipcRenderer.removeListener(PlatformChannels.SpeechProgress, handler);
-  },
   /** 订阅当前窗口内远程连接过程日志，返回 disposer */
   onRemoteConnectionLog: (callback: (entry: RemoteConnectionRuntimeLog) => void) => {
     const handler = (_event: unknown, payload: unknown) =>

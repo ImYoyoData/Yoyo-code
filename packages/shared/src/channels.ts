@@ -164,14 +164,6 @@ export const PlatformChannels = {
   SelectFiles: "zcode:select-files",
   /** Renderer → Main：写入宿主 ~/.yoyo-code 临时文本附件 */
   CreateTempTextAttachment: "zcode:create-temp-text-attachment",
-  /** Renderer → Main：准备本地语音运行时与模型，返回流式 ASR WebSocket */
-  SpeechPrepare: "zcode:speech-prepare",
-  /** Renderer → Main：检查本地语音运行时/模型是否就绪 */
-  SpeechGetStatus: "zcode:speech-get-status",
-  /** Renderer → Main：下载本地语音运行时/模型（不启动服务） */
-  SpeechEnsureAssets: "zcode:speech-ensure-assets",
-  /** Main → Renderer：语音运行时/模型下载或加载进度 */
-  SpeechProgress: "zcode:speech-progress",
   /** Renderer → Main：通过原生另存为对话框保存文件 */
   SaveFile: "zcode:save-file",
   /** Renderer → Main：用 Chromium 打印引擎把当前页面 print 媒体版面导出为 PDF */

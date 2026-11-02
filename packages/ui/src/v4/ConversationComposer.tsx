@@ -35,7 +35,6 @@ import {
   TID_V4_COMPOSER_INPUT,
   TID_V4_COMPOSER_KEEP_QUEUE_SEND,
   TID_V4_COMPOSER_SEND,
-  TID_V4_COMPOSER_SPEECH,
   TID_V4_PAUSED_QUEUE_SEND_DIALOG,
   TID_V4_ATTACHMENT,
   TID_V4_ATTACHMENT_UPLOAD_PROGRESS,
@@ -54,7 +53,6 @@ import {
   ArrowUpIcon,
   ClipboardPenLineIcon,
   InfoIcon,
-  MicIcon,
   RotateCcwIcon,
   SquareIcon,
   XIcon,
@@ -138,8 +136,6 @@ import { isAppleKeyboardPlatform } from "@/lib/keyboardShortcuts.js";
 import { usePrimaryFollowupModifier } from "@/v4/composer/usePrimaryFollowupModifier.js";
 import { consumeV4ComposerDraftWorkspaceTransferRequest } from "@/v4/composer/composerDraftWorkspaceTransfer.js";
 import { useComposerAttachments } from "@/v4/composer/useComposerAttachments.js";
-import { useSpeechDictation } from "@/v4/composer/useSpeechDictation.js";
-import { useSettings } from "@/hooks/useSettingService.js";
 import type { ConversationDropTargetController } from "@/v4/composer/conversationDropTarget.js";
 import { CodeCommentAttachmentChip } from "@/v4/composer/CodeCommentAttachmentChip.js";
 import { removeCodeCommentPreview } from "@/v4/composer/codeCommentPreviewSync.js";
@@ -621,15 +617,6 @@ function ConversationComposerImpl({
     },
     [onTextChange, workspaceIdentity, workspacePath],
   );
-
-  const speech = useSpeechDictation({
-    getBaseText: () => inputApiRef.current?.getText() ?? textRef.current,
-    applyText: (text) => inputApiRef.current?.setText(text),
-    restoreBaseText: (text) => inputApiRef.current?.setText(text),
-    focusEditor: () => inputApiRef.current?.focus(),
-  });
-  const { settings: appSpeechSettings } = useSettings();
-  const speechInputEnabled = appSpeechSettings?.speechInputEnabled === true;
 
   // ── 附件全链路（选择/粘贴/拖拽/画板/预传/门禁）──
   const attachmentsApi = useComposerAttachments({
@@ -2048,53 +2035,6 @@ function ConversationComposerImpl({
       }),
     [onSelectModel],
   );
-  const speechBusy = speech.status === "preparing" || speech.status === "finalizing";
-  const speechTooltipId =
-    speech.status === "recording"
-      ? "chat.speech.stop"
-      : speech.status === "finalizing"
-        ? "chat.speech.finishing"
-        : "chat.speech.start";
-  const speechProgressId =
-    speech.progress?.percent !== undefined && speech.progress.phase === "model"
-      ? "chat.speech.downloadingModel"
-      : speech.progress?.percent !== undefined && speech.progress.phase === "runtime"
-        ? "chat.speech.downloadingRuntime"
-        : speech.progress?.phase === "starting"
-          ? "chat.speech.starting"
-          : "chat.speech.preparing";
-  const speechErrorText = speech.error
-    ? intl.formatMessage(
-        { id: "chat.speech.error" },
-        { message: speech.error.detail || speech.error.code },
-      )
-    : null;
-  const handleSpeechClick = useCallback(() => {
-    if (speech.status === "recording") {
-      runUserAction({
-        input: {
-          featureId: "conversation.composer.speech",
-          action: "stop",
-          trigger: "button",
-        },
-        operation: () => speech.stop(),
-        completed: { resultSource: "optimistic_projection" },
-        failureStage: "speech_stop",
-      });
-      return;
-    }
-    if (speech.status !== "idle") return;
-    runUserAction({
-      input: {
-        featureId: "conversation.composer.speech",
-        action: "start",
-        trigger: "button",
-      },
-      operation: () => speech.toggle(),
-      completed: { resultSource: "optimistic_projection" },
-      failureStage: "speech_start",
-    });
-  }, [speech.status, speech.stop, speech.toggle]);
   const submitControlNode = useMemo(
     () => (
       <div className="flex min-w-0 items-center gap-1">
@@ -2121,28 +2061,6 @@ function ConversationComposerImpl({
             onSendCompressionCommand={onSendCompressionCommand}
           />
         </span>
-        {speech.supported && speechInputEnabled ? (
-          <ControlHintTooltip title={intl.formatMessage({ id: speechTooltipId })}>
-            <Button
-              type="button"
-              variant={speech.status === "recording" ? "secondary" : "ghost"}
-              size="icon-md"
-              data-testid={TID_V4_COMPOSER_SPEECH}
-              aria-label={intl.formatMessage({ id: speechTooltipId })}
-              disabled={disabled || speechBusy}
-              onClick={handleSpeechClick}
-              className="shrink-0"
-            >
-              {speechBusy ? (
-                <Spinner className="size-4" />
-              ) : speech.status === "recording" ? (
-                <SquareIcon className="size-4 fill-current" />
-              ) : (
-                <MicIcon className="size-4" />
-              )}
-            </Button>
-          </ControlHintTooltip>
-        ) : null}
         {showStopControl ? (
           <ControlHintTooltip title={stopTooltipTitle} shortcut="Esc">
             <Button
@@ -2167,7 +2085,7 @@ function ConversationComposerImpl({
             <Button
               type="submit"
               size="icon-md"
-              disabled={!canSend || speech.status === "recording" || speech.status === "finalizing"}
+              disabled={!canSend}
               onClick={handleSendButtonClick}
               data-testid={TID_V4_COMPOSER_SEND}
               aria-label={resolvedSendTooltipTitle}
@@ -2191,7 +2109,6 @@ function ConversationComposerImpl({
       handleStopClick,
       handleSendButtonClick,
       handleConfigPickerOpenChange,
-      handleSpeechClick,
       intl,
       mode,
       handleSelectModelTrace,
@@ -2212,11 +2129,6 @@ function ConversationComposerImpl({
       sendTooltipTitle,
       sessionId,
       showStopControl,
-      speech.supported,
-      speech.status,
-      speechInputEnabled,
-      speechBusy,
-      speechTooltipId,
       stopTooltipTitle,
       workspaceIdentity,
       workspacePath,
@@ -2334,34 +2246,13 @@ function ConversationComposerImpl({
             })}
           </div>
         ) : null}
-        {speech.status === "preparing" ? (
-          <p className="mb-2 w-full rounded-lg border border-border/70 bg-surface-raised px-3 py-2 text-ui-base text-foreground-subtle">
-            {intl.formatMessage(
-              { id: speechProgressId },
-              { percent: speech.progress?.percent ?? 0 },
-            )}
-          </p>
-        ) : null}
-        {speechErrorText ? (
-          <p
-            role="alert"
-            className="mb-2 w-full rounded-lg border border-[var(--color-warning)]/30 bg-[var(--color-warning)]/10 px-3 py-2 text-ui-base text-foreground"
-          >
-            {speechErrorText}
-          </p>
-        ) : null}
         <ChatPromptEditor
           workspacePath={workspacePath}
           workspaceIdentity={workspaceIdentity}
           taskId={sessionId}
           skillCatalogSessionId={skillCatalogSessionId}
           placeholder={placeholder}
-          disabled={
-            disabled ||
-            mode === "reject" ||
-            speech.status === "recording" ||
-            speech.status === "finalizing"
-          }
+          disabled={disabled || mode === "reject"}
           submitting={pending}
           submitDisabled={pending || !routingAllowsSend || !attachmentsReady || !submissionReady}
           allowSubmitWhenEmpty={
