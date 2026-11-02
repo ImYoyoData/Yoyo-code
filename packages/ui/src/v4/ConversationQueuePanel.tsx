@@ -1,3 +1,4 @@
+/* oxlint-disable eslint(max-lines) -- 队列行、拖拽和快捷键共享同一份行级状态，拆分会把交互边界拆散。 */
 import {
   closestCenter,
   DndContext,
@@ -28,6 +29,7 @@ import { Button } from "@/components/ui/button.js";
 import { cn } from "@/components/lib/utils.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { runUserAction, runUserActionAsync } from "@/lib/userActionTelemetry.js";
+import { useQueueShortcuts } from "@/v4/useQueueShortcuts.js";
 
 interface ConversationQueuePanelProps {
   queue: QueueState;
@@ -45,6 +47,8 @@ interface ConversationQueuePanelProps {
   onMoveItem?: (queueItemId: string, beforeQueueItemId: string | null) => void;
   /** 暂停队列恢复：CLI setAutoDrain(true)，idle 立即消费、busy 仅武装。 */
   onResume?: () => Promise<void> | void;
+  /** 只有 focused pane 响应队列快捷键，避免分屏时同时操作多个队列。 */
+  shortcutsEnabled?: boolean;
 }
 
 type QueueItem = QueueState["items"][number];
@@ -122,6 +126,9 @@ interface QueueRowProps {
   editPending: boolean;
   onSendNow?: (queueItemId: string) => void;
   onSendGuide?: (queueItemId: string) => void;
+  onActivate?: (queueItemId: string) => void;
+  guideShortcut: string;
+  sendNowShortcut: string;
 }
 
 const QueueRow = memo(function QueueRow({
@@ -133,6 +140,9 @@ const QueueRow = memo(function QueueRow({
   onEditItem,
   onSendNow,
   onSendGuide,
+  onActivate,
+  guideShortcut,
+  sendNowShortcut,
   editPending,
 }: QueueRowProps) {
   const dispatchLocked = item.dispatch.state !== "queued";
@@ -178,6 +188,8 @@ const QueueRow = memo(function QueueRow({
       data-kind={item.kind}
       data-dispatch-state={item.dispatch.state}
       data-edit-pending={editPending ? "true" : "false"}
+      onPointerEnter={() => onActivate?.(item.queueItemId)}
+      onFocusCapture={() => onActivate?.(item.queueItemId)}
       className={cn(
         "relative flex items-center gap-2 rounded-xl px-1.5 py-1 pr-1 transition-colors hover:bg-hover/30",
         isDragging ? "bg-hover/40 shadow-sm" : null,
@@ -212,7 +224,10 @@ const QueueRow = memo(function QueueRow({
         <span className="truncate">{isCompact ? "/compact" : item.text}</span>
       </span>
       {onSendGuide && item.kind === "sendText" ? (
-        <ControlHintTooltip title={intl.formatMessage({ id: "chat.queue.sendGuide.description" })}>
+        <ControlHintTooltip
+          title={intl.formatMessage({ id: "chat.queue.sendGuide.description" })}
+          shortcut={guideShortcut}
+        >
           <Button
             type="button"
             variant="secondary"
@@ -240,30 +255,35 @@ const QueueRow = memo(function QueueRow({
         </ControlHintTooltip>
       ) : null}
       {onSendNow ? (
-        <Button
-          type="button"
-          variant="secondary"
-          size="default"
-          data-icon="inline-start"
-          data-testid={testId(TID_V4_QUEUE_ITEM_SEND_NOW, item.queueItemId)}
-          data-queue-item-id={item.queueItemId}
-          disabled={rowLocked}
-          onClick={() =>
-            runUserAction({
-              input: {
-                featureId: "conversation.queue.item",
-                action: "send_now",
-                trigger: "button",
-              },
-              operation: () => onSendNow(item.queueItemId),
-              completed: { resultSource: "optimistic_projection" },
-              failureStage: "queue_send_now",
-            })
-          }
+        <ControlHintTooltip
+          title={intl.formatMessage({ id: "chat.queue.sendNow.description" })}
+          shortcut={sendNowShortcut}
         >
-          <ArrowUpFromLine className="size-3.5" />
-          {intl.formatMessage({ id: isCompact ? "chat.queue.runNow" : "chat.queue.sendNow" })}
-        </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="default"
+            data-icon="inline-start"
+            data-testid={testId(TID_V4_QUEUE_ITEM_SEND_NOW, item.queueItemId)}
+            data-queue-item-id={item.queueItemId}
+            disabled={rowLocked}
+            onClick={() =>
+              runUserAction({
+                input: {
+                  featureId: "conversation.queue.item",
+                  action: "send_now",
+                  trigger: "button",
+                },
+                operation: () => onSendNow(item.queueItemId),
+                completed: { resultSource: "optimistic_projection" },
+                failureStage: "queue_send_now",
+              })
+            }
+          >
+            <ArrowUpFromLine className="size-3.5" />
+            {intl.formatMessage({ id: isCompact ? "chat.queue.runNow" : "chat.queue.sendNow" })}
+          </Button>
+        </ControlHintTooltip>
       ) : null}
       {onEditItem && !isCompact ? (
         <ControlHintTooltip title={intl.formatMessage({ id: "chat.queue.edit" })}>
@@ -314,9 +334,18 @@ function ConversationQueuePanelImpl({
   onSendGuide,
   onMoveItem,
   onResume,
+  shortcutsEnabled = true,
 }: ConversationQueuePanelProps) {
   const { intl } = useZCodeIntl();
   const [resumePending, setResumePending] = useState(false);
+  const [activeQueueItemId, setActiveQueueItemId] = useState<string | null>(null);
+  const { guideShortcut, sendNowShortcut } = useQueueShortcuts({
+    queue,
+    activeQueueItemId,
+    onSendGuide,
+    onSendNow,
+    enabled: shortcutsEnabled,
+  });
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -414,6 +443,9 @@ function ConversationQueuePanelImpl({
                 onEditItem={onEditItem}
                 onSendNow={onSendNow}
                 onSendGuide={onSendGuide}
+                onActivate={setActiveQueueItemId}
+                guideShortcut={guideShortcut}
+                sendNowShortcut={sendNowShortcut}
                 editPending={pendingEditQueueItemId === item.queueItemId}
               />
             ))}

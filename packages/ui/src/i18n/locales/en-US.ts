@@ -1771,6 +1771,8 @@ const enUS: Record<string, string> = {
   "settings.shortcuts.command.newTask": "New Task",
   "settings.shortcuts.command.composerSend": "Send Message",
   "settings.shortcuts.command.composerInsertNewline": "Insert Newline in Composer",
+  "settings.shortcuts.command.queueSendGuide": "Guide Queued Message",
+  "settings.shortcuts.command.queueSendNow": "Send Queued Message Now",
   "settings.shortcuts.command.openWorkspace": "Open Workspace",
   "settings.shortcuts.command.closeActiveContext": "Close Current Context",
   "settings.shortcuts.command.toggleSidebar": "Toggle Sidebar",
@@ -4340,6 +4342,8 @@ const enUS: Record<string, string> = {
   "chat.queue.sendGuide": "Guide",
   "chat.queue.sendGuide.description":
     "Guide this message into the current run; it takes effect at the next tool call",
+  "chat.queue.sendNow.description":
+    "Stop the current response and send this queued message now.",
   "chat.queue.runNow": "Run now",
   "chat.queue.edit": "Edit",
   "chat.queue.editDraftConflict":
