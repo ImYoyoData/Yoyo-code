@@ -29,6 +29,10 @@ Release **v3.19.3** (2026-11-02)
 
 1 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
 
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.19.2...v3.19.3
+
 ## v3.19.2 — 2026-11-02
 
 ## 中文
@@ -39,7 +43,6 @@ Release **v3.19.3** (2026-11-02)
 
 - 移除语音输入功能
 
-
 ## English
 
 Release **v3.19.2** (2026-11-02)
@@ -47,7 +50,6 @@ Release **v3.19.2** (2026-11-02)
 ### Fixes
 
 - 移除语音输入功能
-
 
 ---
 
