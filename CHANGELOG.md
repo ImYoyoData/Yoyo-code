@@ -50,6 +50,11 @@ Release **v3.20.0** (2026-11-03)
   - _中文：_
     - 轮次导航的历史补拉改到空闲期执行，切换会话先渲染尾部窗口，长会话不再因一次性加载全部历史而卡顿。
 
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.19.4...v3.20.0
+
 ## v3.19.4 — 2026-11-03
 
 ## 中文
@@ -64,7 +69,6 @@ Release **v3.20.0** (2026-11-03)
 
 - macOS runner 迁移到 macos-26
 
-
 ## English
 
 Release **v3.19.4** (2026-11-03)
@@ -76,7 +80,6 @@ Release **v3.19.4** (2026-11-03)
 ### Other Changes
 
 - macOS runner 迁移到 macos-26
-
 
 ---
 
