@@ -3243,20 +3243,55 @@ export function SessionPane({
 
   const handleSendQueuedGuide = useCallback(
     (queueItemId: string) => {
-      const current = snapshotRef.current;
-      if (!sessionId || current === null) return;
+      const first = snapshotRef.current;
+      if (!sessionId || first === null) return;
       // guide 不抢占当前 turn，因此不触发“滚动到底部”；是否 steer 或回退队列由 CLI 裁决。
-      void dispatchCommand("sendQueuedGuide", { queueItemId }, sessionId, current.revision).then(
-        (ack) => {
-          if (ack.status !== "accepted" && ack.status !== "noop") {
-            logger.warn(
-              `[v4-pane] sendQueuedGuide 被拒绝: ${ack.status} ${ack.reasonCode ?? ""}`,
+      const sendGuide = async () => {
+        let ack = await dispatchCommand(
+          "sendQueuedGuide",
+          { queueItemId },
+          sessionId,
+          first.revision,
+        );
+        // 切换会话后能恢复，说明高频 turn 事件会让本地 revision 短暂落后；
+        // 首次 stale 时用最新快照重试一次，避免用户必须手动切走再切回。
+        if (ack.status === "stale" && ack.reasonCode === "proto.staleRevision") {
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          const latest = snapshotRef.current;
+          if (latest) {
+            ack = await dispatchCommand(
+              "sendQueuedGuide",
+              { queueItemId },
+              sessionId,
+              latest.revision,
             );
           }
-        },
-      );
+        }
+        return ack;
+      };
+      void sendGuide().then((ack) => {
+        if (ack.status !== "accepted" && ack.status !== "noop") {
+          logger.warn(
+            `[v4-pane] sendQueuedGuide 被拒绝: ${ack.status} ${ack.reasonCode ?? ""}`,
+          );
+          toast(
+            intl.formatMessage(
+              { id: "chat.queue.sendGuideFailed" },
+              { reason: ack.reasonCode ?? ack.status },
+            ),
+          );
+          return;
+        }
+        if (
+          ack.status === "accepted" &&
+          ack.result?.type === "inputAccepted" &&
+          ack.result.delivery === "queue"
+        ) {
+          toast(intl.formatMessage({ id: "chat.queue.sendGuideQueued" }));
+        }
+      });
     },
-    [dispatchCommand, sessionId],
+    [dispatchCommand, intl, sessionId],
   );
 
   const handleReorderQueueItem = useCallback(

@@ -353,7 +353,7 @@ async function sendQueuedGuide(
       },
       queueItem.text,
     );
-    await startPromptTurn(host, record, {
+    const started = await startPromptTurn(host, record, {
       content: queueItem.text,
       inputId: envelope.commandId,
       intent,
@@ -369,7 +369,13 @@ async function sendQueuedGuide(
       ...traceOptions,
     });
     if (!removed) throw new V4QueuePromotionCommitError(payload.queueItemId);
-    return undefined;
+    // Core 在 active turn 不可 steer 时会降级为 queue：内容已保留到新队列项，
+    // 但并没有注入当前 turn。把真实 delivery 回给 UI，避免用户以为按钮没反应。
+    return {
+      type: "inputAccepted",
+      delivery: started.admission.kind === "queued" ? "queue" : "guide",
+      inputId: envelope.commandId,
+    };
   } finally {
     // admission 已成功时不能释放 reservation：remove 失败后原项若被下一次 drain 再消费
     // 就会重复发送；保持 reserved 交给显式故障处理（与 sendQueuedNow 同一取舍）。

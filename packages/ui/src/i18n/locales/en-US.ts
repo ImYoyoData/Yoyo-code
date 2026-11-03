@@ -4344,6 +4344,9 @@ const enUS: Record<string, string> = {
     "Guide this message into the current run; it takes effect at the next tool call",
   "chat.queue.sendNow.description":
     "Stop the current response and send this queued message now.",
+  "chat.queue.sendGuideFailed": "Guide send failed: {reason}",
+  "chat.queue.sendGuideQueued":
+    "This turn cannot accept a guide right now. The message stays queued; retry later or use Send now.",
   "chat.queue.runNow": "Run now",
   "chat.queue.edit": "Edit",
   "chat.queue.editDraftConflict":
