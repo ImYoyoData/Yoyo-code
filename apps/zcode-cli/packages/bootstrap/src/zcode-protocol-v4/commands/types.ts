@@ -221,6 +221,14 @@ export interface V4CommandCoreHost {
    */
   closeSession?(sessionId: string): Promise<void>;
   /**
+   * 清空会话聊天记录（clearSessionHistory 的执行面）。
+   *
+   * 语义：删除该 session 的 message/part 与内存事件、释放 runtime（模型上下文随之丢弃），
+   * 但保留 session 行、标题、置顶/归档与 tasks-index membership。
+   * 有活跃 turn / queue 时由宿主抛带 reasonCode 的领域错误（ACK failed），不做部分删除。
+   */
+  clearSessionHistory?(sessionId: string): Promise<void>;
+  /**
    * 会话记录创建（createSession 的执行面：record 建立/事件接线/模型 catalog 同步/
    * 失败清理，全部与旧协议宿主纠缠）。binder 实现调旧 createSession op；
    * v4 自持会话注册表后由原生实现取代本钩子。

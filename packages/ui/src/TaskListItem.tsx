@@ -34,6 +34,7 @@ import { buildTaskWorkspaceKey } from "@/lib/taskQueryCache.js";
 import { useV4SplitPaneEntry } from "@/v4/splitPaneEntryContext.js";
 import { buildWorkbenchSessionKey, useWorkbenchGroupStore } from "@/v4/workbenchGroupStore.js";
 import { useTaskInteractionAutoResolutionSnooze } from "@/hooks/useTaskInteractionAutoResolutionSnooze.js";
+import { useClearSessionHistoryAction } from "@/hooks/useClearSessionHistoryAction.js";
 import {
   WORKBENCH_SESSION_DRAG_MIME,
   clearActiveWorkbenchSessionDragPayload,
@@ -854,6 +855,15 @@ export function TaskListItemContextMenuContent({
       id: task.forkedFromTaskId ? "taskList.forkedUntitled" : "taskList.untitled",
     });
 
+  // 清空会话记录只删聊天记录，不动任务行；入口挂在任务菜单里，与归档/重命名同级。
+  const clearSessionHistoryAction = useClearSessionHistoryAction({
+    workspacePath,
+    ...(task.workspaceIdentity?.trim() ? { workspaceIdentity: task.workspaceIdentity } : {}),
+    ...(remoteSessionId ? { remoteSessionId } : {}),
+    taskId: task.taskId,
+    taskTitle,
+  });
+
   const handleOpenTaskFeedback = useCallback(async () => {
     // 任务右键菜单之前只能复制日志/路径，反馈时缺少任务上下文。
     // 这里复用反馈中心 draft，只预填脱敏后的任务线索，附件由用户主动选择。
@@ -912,6 +922,10 @@ export function TaskListItemContextMenuContent({
       onMarkTaskAsUnread={() => {
         onMarkTaskAsUnread(task.taskId);
       }}
+      onClearSessionHistory={() => {
+        void clearSessionHistoryAction.clearSessionHistory();
+      }}
+      clearSessionHistoryPending={clearSessionHistoryAction.pending}
       onOpenInSplitPane={
         splitPaneEntryEnabled
           ? () => {

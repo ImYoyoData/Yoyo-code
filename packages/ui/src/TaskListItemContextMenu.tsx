@@ -16,6 +16,8 @@ export function TaskListItemContextMenu({
   onStartRenameTask,
   onArchiveTask,
   onMarkTaskAsUnread,
+  onClearSessionHistory,
+  clearSessionHistoryPending,
   onOpenInSplitPane,
   openInSplitPaneDisabled,
   onOpenTaskFeedback,
@@ -44,6 +46,9 @@ export function TaskListItemContextMenu({
   onStartRenameTask: () => void;
   onArchiveTask: () => void;
   onMarkTaskAsUnread: () => void;
+  /** 「清空会话记录」：只删聊天记录，保留任务行与标题。 */
+  onClearSessionHistory?: () => void;
+  clearSessionHistoryPending?: boolean;
   /** 「在分屏打开」（仅桌面 shell 传入）。 */
   onOpenInSplitPane?: () => void;
   /** 叶子数达上限且该 session 未在任何 pane 时禁用。 */
@@ -73,6 +78,8 @@ export function TaskListItemContextMenu({
         onStartRenameTask={onStartRenameTask}
         onArchiveTask={onArchiveTask}
         onMarkTaskAsUnread={onMarkTaskAsUnread}
+        onClearSessionHistory={onClearSessionHistory}
+        clearSessionHistoryPending={clearSessionHistoryPending}
         onOpenInSplitPane={onOpenInSplitPane}
         openInSplitPaneDisabled={openInSplitPaneDisabled}
         onOpenTaskFeedback={onOpenTaskFeedback}

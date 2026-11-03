@@ -243,6 +243,9 @@ export const commandPayloadSchemas = {
   amendWorkflowRunSettings: amendWorkflowRunSettingsPayloadSchema,
   renameSession: z.object({ title: z.string() }),
   deleteSession: z.object({}),
+  // 清空会话聊天记录（message/part 与内存事件），保留任务行、标题、置顶/归档与
+  // tasks-index membership；下一轮从空历史开始。
+  clearSessionHistory: z.object({}),
   discardSharedContext: z.object({ contextId: z.string().trim().min(1) }).strict(),
 } as const;
 

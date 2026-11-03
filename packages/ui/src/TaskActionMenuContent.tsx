@@ -30,6 +30,8 @@ export function TaskActionMenuContent({
   onStartRenameTask,
   onArchiveTask,
   onMarkTaskAsUnread,
+  onClearSessionHistory,
+  clearSessionHistoryPending = false,
   onOpenInSplitPane,
   openInSplitPaneDisabled = false,
   onOpenTaskFeedback,
@@ -63,6 +65,9 @@ export function TaskActionMenuContent({
   onStartRenameTask: () => void;
   onArchiveTask: () => void;
   onMarkTaskAsUnread: () => void;
+  /** 「清空会话记录」：只删聊天记录，保留任务行与标题；不提供时整个入口不渲染。 */
+  onClearSessionHistory?: () => void;
+  clearSessionHistoryPending?: boolean;
   /** 「在分屏打开」（仅桌面 shell 传入；手机远控不显示该入口）。 */
   onOpenInSplitPane?: () => void;
   /** 当前 session 或 pane 数达上限且目标无已有归属时禁用（保留布局与层级）。 */
@@ -123,6 +128,20 @@ export function TaskActionMenuContent({
       >
         {intl.formatMessage({ id: "taskList.markAsUnread" })}
       </Item>
+      {onClearSessionHistory ? (
+        <Item
+          data-testid="task-clear-session-history"
+          disabled={taskTargetActionsDisabled || clearSessionHistoryPending}
+          title={taskTargetActionsDisabled ? disabledReason : undefined}
+          onSelect={() => {
+            if (!taskTargetActionsDisabled && !clearSessionHistoryPending) {
+              onClearSessionHistory();
+            }
+          }}
+        >
+          {intl.formatMessage({ id: "taskList.clearSessionHistory" })}
+        </Item>
+      ) : null}
       {onOpenInSplitPane ? (
         <Item
           data-testid={TID_V4_TASK_OPEN_IN_SPLIT}
