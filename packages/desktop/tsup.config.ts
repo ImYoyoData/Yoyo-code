@@ -201,6 +201,10 @@ export default defineConfig([
     },
     onSuccess: createDevReadyMarkerHook("preload"),
     ...desktopTsupBundleSecurityOptions,
+    // contextBridge.executeInMainWorld 会把 func.toString() 送进主世界执行；
+    // keepNames 注入的 __name(...) 调用属于 preload 闭包，主世界解析不到，
+    // 生产包会报 "c is not defined" 并导致 dialog preload 整段加载失败。
+    keepNames: false,
   },
   {
     name: "host",
