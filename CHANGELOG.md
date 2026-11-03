@@ -37,6 +37,10 @@ Release **v3.19.4** (2026-11-03)
 
 2 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
 
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.19.3...v3.19.4
+
 ## v3.19.3 — 2026-11-02
 
 ## 中文
@@ -47,7 +51,6 @@ Release **v3.19.4** (2026-11-03)
 
 - 修复提示气泡遮挡并增加队列快捷键
 
-
 ## English
 
 Release **v3.19.3** (2026-11-02)
@@ -55,7 +58,6 @@ Release **v3.19.3** (2026-11-02)
 ### Fixes
 
 - 修复提示气泡遮挡并增加队列快捷键
-
 
 ---
 
