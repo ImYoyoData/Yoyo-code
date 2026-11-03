@@ -3,6 +3,53 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.20.0 — 2026-11-03
+
+## 中文
+
+版本 **v3.20.0**（2026-11-03）
+
+### 新功能
+
+- 任务菜单新增「清空会话记录」，只删除 message/part，保留任务行、标题、置顶/归档，清空后会话仍可继续对话。
+  - _EN:_
+    - Add "Clear chat history" to the task menu. It removes message/part rows only and keeps the task row, title, pin and archive state, so the session stays usable with an empty model context.
+
+### 问题修复
+
+- 生产包 preload 不再注入 keepNames。executeInMainWorld 把函数体送进主世界执行，注入的 __name 在主世界不存在，导致生产包报错并加载失败。
+  - _EN:_
+    - Stop injecting keepNames into the preload bundle. executeInMainWorld serializes the function body into the main world, where the injected __name helper is undefined, so production builds threw "c is not defined".
+
+### 性能
+
+- 轮次导航的历史补拉改到空闲期执行，切换会话先渲染尾部窗口，长会话不再因一次性加载全部历史而卡顿。
+  - _EN:_
+    - Defer the turn-navigator history prefetch to idle time so switching sessions renders the tail window first. Long conversations no longer stall while the full history is pulled into the renderer.
+
+
+## English
+
+Release **v3.20.0** (2026-11-03)
+
+### Features
+
+- Add "Clear chat history" to the task menu. It removes message/part rows only and keeps the task row, title, pin and archive state, so the session stays usable with an empty model context.
+  - _中文：_
+    - 任务菜单新增「清空会话记录」，只删除 message/part，保留任务行、标题、置顶/归档，清空后会话仍可继续对话。
+
+### Fixes
+
+- Stop injecting keepNames into the preload bundle. executeInMainWorld serializes the function body into the main world, where the injected __name helper is undefined, so production builds threw "c is not defined".
+  - _中文：_
+    - 生产包 preload 不再注入 keepNames。executeInMainWorld 把函数体送进主世界执行，注入的 __name 在主世界不存在，导致生产包报错并加载失败。
+
+### Performance
+
+- Defer the turn-navigator history prefetch to idle time so switching sessions renders the tail window first. Long conversations no longer stall while the full history is pulled into the renderer.
+  - _中文：_
+    - 轮次导航的历史补拉改到空闲期执行，切换会话先渲染尾部窗口，长会话不再因一次性加载全部历史而卡顿。
+
 ## v3.19.4 — 2026-11-03
 
 ## 中文
