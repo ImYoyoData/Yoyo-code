@@ -260,6 +260,12 @@ export class ConversationTopicPublisher {
     return this.projection.resolveStableForkCandidate(rowId);
   }
 
+  /** meta 种子注入：清空聊天记录后重建空投影时保住标题。语义同 seedConfig。 */
+  seedMeta(seed: { title: string; titleSource: "default" | "generated" | "custom" }): void {
+    this.projection.seedMeta(seed);
+    this.wireSnapshotBytesUpperBound = this.measureWireSnapshotBytes(this.getWireSnapshot());
+  }
+
   /** config 种子注入：直改投影初值，不产 delta / 不进事件日志。语义见 ProductProjection.seedConfig。 */
   seedConfig(seed: SessionConfigSeed): void {
     this.projection.seedConfig(seed);
@@ -541,6 +547,33 @@ export class ConversationTopicPublisher {
       subscription.buffer = next.deltas;
       subscription.bufferBytes = next.encodedBytes;
     }
+  }
+
+  /**
+   * 清空聊天记录后的投影归零（保留 topic authority 与既有订阅）。
+   *
+   * 只替换 projection / log 数据面，不换 publisher 身份，也不重置 logEpoch：
+   * - 客户端订阅仍持有同一 subscriptionId，由 resyncRequired 触发一次空快照；
+   * - logEpoch 变化会让客户端被迫做一次全新 subscribe，等于让 UI 重新连接。
+   * seq 由空投影自身的 revision/seq 起点决定（revision+1），不与旧日志区间重叠。
+   */
+  resetProjection(): number {
+    const previousSeq = this.currentSeq;
+    const candidate = new ProductProjection(this.sessionId, this.logEpoch);
+    // 空投影的 seq 归零；抬到旧水位之上，避免客户端把空快照当成回退/断档。
+    candidate.markClearedAfter(previousSeq);
+    this.projection = candidate;
+    this.log.splice(0, this.log.length);
+    this.floorSeq = this.currentSeq;
+    this.wireSnapshotBytesUpperBound = this.measureWireSnapshotBytes(this.getWireSnapshot());
+    for (const subscription of this.subscriptions.values()) {
+      subscription.buffer = [];
+      subscription.bufferBytes = 0;
+      subscription.resyncRequired = true;
+      subscription.sentSeq = 0;
+      subscription.inFlight = null;
+    }
+    return this.currentSeq;
   }
 
   /**

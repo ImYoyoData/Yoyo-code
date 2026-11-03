@@ -260,6 +260,7 @@ async function previewConversationFileRewind(
   });
 }
 
+
 interface InputCommandForAdmission {
   kind: ConversationInputIntent["kind"];
   text: string;
@@ -568,14 +569,122 @@ async function registerCommittedForkBestEffort(
   }
 }
 
+/**
+ * clearSessionHistory 的执行体。
+ *
+ * 顺序：busy 预检 → 删除持久 message/part → 关闭并重建 runtime（丢弃 provider 上下文）
+ * → 把 v4 投影重置为空。
+ *
+ * 关键取舍：
+ * - 不能只删库：runtime 的 messageHistory 仍持旧上下文，下一轮会继续带全量历史。
+ * - 不能走 closeSession/disposeSession：那会把任务行从侧栏摘掉。
+ * - 不能只 deactivate：会话被摘出注册表后，下一条 sendText 会被判成会话不存在。
+ * 因此关闭旧 runtime 后用空历史重新冷恢复，会话保持可继续对话。
+ */
+async function clearSessionHistoryInBootstrap(
+  context: ZCodeProtocolAgentServerContext,
+  sessionId: string,
+): Promise<void> {
+  const store = context.deps.sessionStore;
+  if (!store?.clearMessages) {
+    throw Object.assign(new Error("session store does not support clearing messages"), {
+      reasonCode: "fault.command.clearHistoryUnsupported",
+    });
+  }
+  const record = context.sessions.get(sessionId);
+  const liveRecord = record;
+  // 标题在清空前后都不变；从持久 session 行读取，避免依赖 runtime 是否重建成功。
+  const persisted = await store.getSession(sessionId as SessionId);
+  if (!record && !persisted) {
+    throw Object.assign(new Error("session not found"), {
+      reasonCode: "proto.sessionNotFound",
+    });
+  }
+  if (record) {
+    if (
+      record.activeAbortController !== undefined ||
+      record.app.runtime.hasActiveOrQueuedTurnWork()
+    ) {
+      throw Object.assign(new Error("session has an active or queued turn"), {
+        reasonCode: "guard.clearHistorySessionBusy",
+      });
+    }
+    if (context.v4Interactions.hasPendingForSession(sessionId)) {
+      throw Object.assign(new Error("session has a pending interaction"), {
+        reasonCode: "guard.clearHistorySessionBusy",
+      });
+    }
+    // CommandInbox pin / 未落库 queue 同样属于“正在写 transcript”的窗口。
+    context.v4Gateway?.assertSessionRuntimeDeactivatable(sessionId);
+  }
+  // 摘要降级需要 workspace 分桶键；非任务列表会话（subagent / workflow child）不进 index。
+  // 冷会话没有 live record，用持久行的 taskType/workspaceID 还原同一个键。
+  const workspaceIdForIndex = record
+    ? isTaskListSessionType(record.taskType)
+      ? record.workspace.workspaceKey
+      : null
+    : persisted && isTaskListSessionType(persisted.taskType)
+      ? String(persisted.workspaceID ?? persisted.directory)
+      : null;
+
+  // 记录删除先落库：即便后续 runtime 重建失败，用户的删除意图也已经生效。
+  await store.clearMessages({ sessionID: sessionId as SessionId });
+
+  if (liveRecord) {
+    liveRecord.unsubscribe?.();
+    await liveRecord.app.close?.();
+    context.sessions.delete(sessionId);
+    await liveRecord.eventStore.deleteSession(sessionId as SessionId);
+    // 空历史重新冷恢复：模型选型/标题走 session_entry，聊天记录已删，因此上下文为空。
+    // 失败只告警：历史已清空，用户再次打开会话会重新走同一条冷恢复路径。
+    try {
+      await activateSessionForResume(context, {
+        sessionId,
+        workspace: {
+          workspaceKey: liveRecord.workspace.workspaceKey,
+          workspacePath: liveRecord.workspace.workspacePath,
+          ...(liveRecord.workspace.workspaceIdentity
+            ? { workspaceIdentity: liveRecord.workspace.workspaceIdentity }
+            : {}),
+        },
+      });
+    } catch (error) {
+      context.logger?.warn("Session runtime rebind after history clear failed", {
+        error: error instanceof Error ? error.message : String(error),
+        event: "zcode_protocol.session.history_clear_rebind_failed",
+        module: "bootstrap.zcode_protocol",
+        sessionId,
+      });
+    }
+  }
+
+  // 投影必须最后重置：重建期间的 SessionResumed 等事件也不能留在空会话里。
+  // 标题不是聊天记录，重建后的空投影要重新种入，否则面板显示空标题。
+  context.v4Gateway?.clearSessionProjection(sessionId, {
+    workspaceId: workspaceIdForIndex,
+    ...(persisted
+      ? {
+          meta: {
+            title: persisted.title,
+            titleSource: normalizeStoredTitleSource(persisted.titleSource),
+          },
+        }
+      : {}),
+  });
+  context.logger?.info("Session history cleared", {
+    event: "zcode_protocol.session.history_cleared",
+    module: "bootstrap.zcode_protocol",
+    sessionId,
+  });
+}
+
 export function createConversationV4Gateway(
   context: ZCodeProtocolAgentServerContext,
 ): ConversationV4Gateway {
   const log = createProtocolLogger(context.deps)?.child({
     module: "bootstrap.zcode_protocol_v4_gateway",
   });
-  const persistentCommands = new PersistentCommandIndex({
-    loadSession: async (sessionId) => {
+  const persistentCommands = new PersistentCommandIndex({    loadSession: async (sessionId) => {
       const live = context.sessions.get(sessionId);
       const stored = await context.deps.sessionStore?.getSession(sessionId as SessionId);
       if (!live && !stored) return null;
@@ -1098,6 +1207,40 @@ export function createConversationV4Gateway(
       // 恒为 null，删除会话后侧栏列表项永不消失（e2e conversation-session-v4-sidebar 抓出）。
       context.v4Gateway?.disposeSession(sessionId);
       context.sessions.delete(sessionId);
+    },
+    /**
+     * clearSessionHistory 的执行面。
+     *
+     * 顺序：busy 预检 → 删除持久 message/part → 关闭并重建 runtime（丢弃 provider 上下文）
+     * → 把 v4 投影重置为空。
+     *
+     * 关键取舍：
+     * - 不能只删库：runtime 的 messageHistory 仍持旧上下文，下一轮会继续带全量历史。
+     * - 不能走 closeSession/disposeSession：那会把任务行从侧栏摘掉。
+     * - 不能只 deactivate：会话被摘出注册表后，下一条 sendText 会被判成会话不存在。
+     * 因此关闭旧 runtime 后用空历史重新冷恢复，会话保持可继续对话。
+     */
+    clearSessionHistory: async (sessionId) => {
+      try {
+        await clearSessionHistoryInBootstrap(context, sessionId);
+        // 清空后，命令幂等回源不再有任何 transcript 事实；旧 LRU 里的空结果必须失效。
+        persistentCommands.invalidate(sessionId);
+      } catch (error) {
+        // 未知错误也要带 reasonCode 上行，否则 UI 只能看到无信息的 executionFailed。
+        if (typeof (error as { reasonCode?: unknown } | null)?.reasonCode === "string") {
+          throw error;
+        }
+        context.logger?.warn("Session history clear failed", {
+          error: error instanceof Error ? error.message : String(error),
+          event: "zcode_protocol.session.history_clear_failed",
+          module: "bootstrap.zcode_protocol",
+          sessionId,
+        });
+        throw Object.assign(new Error(error instanceof Error ? error.message : String(error)), {
+          reasonCode: "fault.command.clearHistoryFailed",
+          cause: error,
+        });
+      }
     },
     // createSession 的执行面：record 建立/事件接线/catalog 同步/失败自清理全在旧
     // createSession op 内（半初始化 record 的回收顺序修过 bug，不重复实现）。

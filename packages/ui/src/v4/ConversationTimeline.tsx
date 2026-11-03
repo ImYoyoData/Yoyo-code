@@ -113,6 +113,28 @@ function scheduleMicrotask(callback: () => void): void {
   void Promise.resolve().then(callback);
 }
 
+type IdleHandle = { kind: "idle" | "timeout"; id: number };
+
+/**
+ * 会话切换后的历史目录补拉放到空闲期：切换瞬间先渲染 tail 窗口，
+ * 避免一次性把整段历史搬进 renderer 造成明显卡顿。
+ * 不支持 requestIdleCallback 的运行时降级为 2s 定时器。
+ */
+function scheduleIdle(callback: () => void): IdleHandle {
+  if (typeof globalThis.requestIdleCallback === "function") {
+    return { kind: "idle", id: globalThis.requestIdleCallback(callback, { timeout: 5_000 }) };
+  }
+  return { kind: "timeout", id: window.setTimeout(callback, 2_000) };
+}
+
+function cancelIdleHandle(handle: IdleHandle): void {
+  if (handle.kind === "idle" && typeof globalThis.cancelIdleCallback === "function") {
+    globalThis.cancelIdleCallback(handle.id);
+    return;
+  }
+  window.clearTimeout(handle.id);
+}
+
 function isEditableScrollTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return (
@@ -508,8 +530,16 @@ function ConversationTimelineImpl({
     attemptCount: number;
     key: string | null;
     retryTimer: number | null;
+    /** 已排队的空闲补拉句柄；与 retryTimer 分开，切换会话/卸载时统一取消。 */
+    idleHandle: { kind: "idle" | "timeout"; id: number } | null;
     status: "idle" | "in-flight" | "waiting" | "terminal";
-  }>({ attemptCount: 0, key: null, retryTimer: null, status: "idle" });
+  }>({
+    attemptCount: 0,
+    key: null,
+    retryTimer: null,
+    idleHandle: null,
+    status: "idle",
+  });
   const [turnNavigatorHydrationRetryRevision, setTurnNavigatorHydrationRetryRevision] = useState(0);
   const timelineRootRef = useRef<HTMLDivElement>(null);
   const composerDockRef = useRef<HTMLDivElement>(null);
@@ -630,46 +660,56 @@ function ConversationTimelineImpl({
     const attempt = turnNavigatorHydrationAttemptRef.current;
     if (attempt.key !== hydrationKey) {
       if (attempt.retryTimer !== null) window.clearTimeout(attempt.retryTimer);
+      if (attempt.idleHandle !== null) cancelIdleHandle(attempt.idleHandle);
       Object.assign(attempt, {
         attemptCount: 0,
         key: hydrationKey,
         retryTimer: null,
+        idleHandle: null,
         status: "idle" as const,
       });
     }
     if (attempt.status !== "idle" || !onLoadAllOlder) return;
-    attempt.status = "in-flight";
-    logger.debug("[v4-turn-navigator] 目录请求补齐完整历史", {
-      attempt: attempt.attemptCount + 1,
-      loadedRows: rows.length,
-      sessionKey,
-      totalRows: totalCount,
-    });
-    void onLoadAllOlder().then((result) => {
-      if (attempt.key !== hydrationKey) return;
-      if (result.status === "hydrated" || result.status === "not-enough-queries") {
-        attempt.status = "terminal";
-        return;
-      }
-      if (result.status === "stale") {
-        attempt.status = "idle";
-        return;
-      }
-      attempt.attemptCount += 1;
-      const retryDelayMs = resolveConversationTurnNavigatorHydrationRetryDelayMs(
-        attempt.attemptCount,
-      );
-      if (retryDelayMs === null) {
-        attempt.status = "terminal";
-        return;
-      }
-      attempt.status = "waiting";
-      attempt.retryTimer = window.setTimeout(() => {
+    // 会话切换时立即补拉完整历史会把上千行一次性搬进 renderer，并触发整份
+    // render units 重建和多轮测高，切换体验直接卡住。先让首屏与滚动恢复跑完，
+    // 空闲后再补目录；期间 rows 变化（仍在流式）会重新计时。
+    attempt.status = "waiting";
+    attempt.idleHandle = scheduleIdle(() => {
+      attempt.idleHandle = null;
+      if (attempt.key !== hydrationKey || attempt.status !== "waiting") return;
+      attempt.status = "in-flight";
+      logger.debug("[v4-turn-navigator] 目录请求补齐完整历史", {
+        attempt: attempt.attemptCount + 1,
+        loadedRows: rows.length,
+        sessionKey,
+        totalRows: totalCount,
+      });
+      void onLoadAllOlder().then((result) => {
         if (attempt.key !== hydrationKey) return;
-        attempt.retryTimer = null;
-        attempt.status = "idle";
-        setTurnNavigatorHydrationRetryRevision((revision) => revision + 1);
-      }, retryDelayMs);
+        if (result.status === "hydrated" || result.status === "not-enough-queries") {
+          attempt.status = "terminal";
+          return;
+        }
+        if (result.status === "stale") {
+          attempt.status = "idle";
+          return;
+        }
+        attempt.attemptCount += 1;
+        const retryDelayMs = resolveConversationTurnNavigatorHydrationRetryDelayMs(
+          attempt.attemptCount,
+        );
+        if (retryDelayMs === null) {
+          attempt.status = "terminal";
+          return;
+        }
+        attempt.status = "waiting";
+        attempt.retryTimer = window.setTimeout(() => {
+          if (attempt.key !== hydrationKey) return;
+          attempt.retryTimer = null;
+          attempt.status = "idle";
+          setTurnNavigatorHydrationRetryRevision((revision) => revision + 1);
+        }, retryDelayMs);
+      });
     });
   }, [
     canLoadOlder,
@@ -686,8 +726,10 @@ function ConversationTimelineImpl({
 
   useEffect(
     () => () => {
-      const timer = turnNavigatorHydrationAttemptRef.current.retryTimer;
-      if (timer !== null) window.clearTimeout(timer);
+      const attempt = turnNavigatorHydrationAttemptRef.current;
+      if (attempt.retryTimer !== null) window.clearTimeout(attempt.retryTimer);
+      if (attempt.idleHandle !== null) cancelIdleHandle(attempt.idleHandle);
+      attempt.idleHandle = null;
     },
     [],
   );

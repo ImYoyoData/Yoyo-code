@@ -1553,6 +1553,15 @@ const enUS: Record<string, string> = {
   "taskList.renameFailed": "Could not rename task",
   "taskList.pinFailed": "Could not update pinned state",
   "taskList.markAsUnread": "Mark as unread",
+  "taskList.clearSessionHistory": "Clear chat history",
+  "taskList.clearSessionHistoryTitle": "Clear this session's chat history?",
+  "taskList.clearSessionHistoryDescription":
+    "All chat records of “{taskTitle}” will be deleted. The task itself, its title, pin and archive state are kept. This cannot be undone.",
+  "taskList.clearSessionHistoryDone": "Chat history cleared",
+  "taskList.clearSessionHistoryBusy": "The session is running or waiting for a reply. Stop it first.",
+  "taskList.clearSessionHistoryUnavailable":
+    "This workspace is not connected, so the chat history cannot be cleared right now.",
+  "taskList.clearSessionHistoryFailed": "Could not clear the chat history",
   "taskList.openInSplitPane": "Open in split view",
   "chat.toolCall.agent.openInSidePane": "Open in side pane",
   "v4Pane.splitRight": "Split right",

@@ -1126,6 +1126,11 @@ export interface SessionStorePort {
     messageID: MessageId;
   }): Promise<MessageWithParts | null>;
   messages(input: { sessionID: SessionId }): Promise<MessageWithParts[]>;
+  /**
+   * 清空该会话的聊天记录（message/part），保留 session 与任务事实。
+   * 可选：旧宿主不实现时调用方按 unsupported 处理。
+   */
+  clearMessages?(input: { sessionID: SessionId }): Promise<number>;
   saveSessionEntry?(input: SessionEntryInfo): Promise<void>;
   sessionEntries?(input: {
     sessionID: SessionId;

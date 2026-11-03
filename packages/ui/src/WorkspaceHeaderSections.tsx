@@ -17,6 +17,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog.js";
 import { useGlobalTaskList } from "@/hooks/useGlobalTaskList.js";
 import { useBaseWorkspaceServices, useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 import { useTaskListItemContextActions } from "@/useTaskListItemContextActions.js";
+import { useClearSessionHistoryAction } from "@/hooks/useClearSessionHistoryAction.js";
 import { TaskActionMenuContent } from "@/TaskActionMenuContent.js";
 import {
   DropdownMenu,
@@ -161,6 +162,29 @@ export function WorkspaceHeaderTitleSection({
   const disableTaskTargetActions = !resolvedTaskActionTaskId;
   const taskMenuMembershipLoading =
     taskMenuOpen && Boolean(resolvedTaskActionTaskId) && headerPinnedTaskList.loading;
+  // 当前任务存在时才提供「清空会话记录」；草稿/未落库任务没有可清理的 transcript。
+  const clearSessionHistoryTarget = useMemo(
+    () =>
+      resolvedTaskActionTaskId
+        ? {
+            workspacePath: workspaceAbsPath,
+            ...(workspaceIdentity?.trim() ? { workspaceIdentity } : {}),
+            ...(remoteSessionId ? { remoteSessionId } : {}),
+            taskId: resolvedTaskActionTaskId,
+            taskTitle: activeTaskMeta?.title ?? activeTaskTitle ?? "",
+          }
+        : null,
+    [
+      activeTaskMeta?.title,
+      activeTaskTitle,
+      remoteSessionId,
+      resolvedTaskActionTaskId,
+      workspaceAbsPath,
+      workspaceIdentity,
+    ],
+  );
+  const clearSessionHistoryAction = useClearSessionHistoryAction(clearSessionHistoryTarget);
+  const clearHistoryActionForMenu = clearSessionHistoryTarget ? clearSessionHistoryAction : null;
   const workspaceHeaderProvider = resolveWorkspaceHeaderProvider(
     activeTaskProvider,
     workspaceHeaderState.selectedProvider,
@@ -651,8 +675,7 @@ export function WorkspaceHeaderTitleSection({
                 onMarkTaskAsUnread={() => {
                   if (!resolvedTaskActionTaskId) {
                     return;
-                  }
-                  void services.zcodeTaskService
+                  }                  void services.zcodeTaskService
                     .setTaskUnread({
                       taskId: resolvedTaskActionTaskId,
                       workspacePath: workspaceAbsPath,
@@ -682,6 +705,14 @@ export function WorkspaceHeaderTitleSection({
                       });
                     });
                 }}
+                onClearSessionHistory={
+                  clearHistoryActionForMenu
+                    ? () => {
+                        void clearHistoryActionForMenu.clearSessionHistory();
+                      }
+                    : undefined
+                }
+                clearSessionHistoryPending={clearHistoryActionForMenu?.pending ?? false}
                 onOpenTaskFeedback={() => {
                   void handleOpenTaskFeedback();
                 }}

@@ -1,4 +1,4 @@
-// 会话管理命令组：createSession / renameSession / deleteSession。
+// 会话管理命令组：createSession / renameSession / deleteSession / clearSessionHistory。
 // 每个命令组一个文件：handler 纯函数 (host, envelope) → CommandResult|undefined，
 // 决策逻辑直驱 core，环境能力走 host 钩子（见 ../types.ts 的过渡标注）。
 import type {
@@ -170,6 +170,35 @@ async function deleteSession(
   return undefined;
 }
 
+/**
+ * clearSessionHistory：只删聊天记录（message/part），保留 session 行、标题、置顶/归档
+ * 与 tasks-index membership。
+ *
+ * 与 deleteSession 不同，这里不要求 record 存在：侧栏任务可能是尚未冷恢复的会话，
+ * 删除事实只属于 session store。宿主能力负责 busy 预检、关闭 runtime（释放模型上下文）、
+ * 清空内存事件、删除持久 message/part，并把 v4 投影重置为空。
+ * 存在活跃 turn 时拒绝，避免用户在模型仍在写 transcript 时把记录删掉一半。
+ */
+async function clearSessionHistory(
+  host: V4CommandCoreHost,
+  envelope: CommandEnvelope,
+): Promise<CommandResult | undefined> {
+  const sessionId = envelope.sessionId;
+  if (!sessionId) {
+    throw new V4InputAdmissionRejectedError("proto.invalidPayload", "sessionId is required");
+  }
+  if (!host.clearSessionHistory) {
+    // 旧宿主不实现时按能力缺席失败，不能假装成功；必须带 reasonCode，
+    // 否则网关只会归一出无信息的 fault.command.executionFailed。
+    throw new V4InputAdmissionRejectedError(
+      "fault.command.clearHistoryUnsupported",
+      "v4 clearSessionHistory requires host.clearSessionHistory capability",
+    );
+  }
+  await host.clearSessionHistory(sessionId);
+  return undefined;
+}
+
 async function discardSharedContext(
   host: V4CommandCoreHost,
   envelope: CommandEnvelope,
@@ -192,5 +221,6 @@ export const sessionMgmtHandlers = {
   createSession,
   renameSession,
   deleteSession,
+  clearSessionHistory,
   discardSharedContext,
 };

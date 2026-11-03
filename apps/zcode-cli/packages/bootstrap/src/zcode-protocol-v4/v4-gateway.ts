@@ -2665,6 +2665,109 @@ export class ConversationV4Gateway {
     return this.publishers.get(sessionId)?.getTurnRewindAnchor(rowId) ?? null;
   }
 
+  /**
+   * 清空会话聊天记录后的投影收口：保留 conversation topic 与既有订阅（客户端不需要重连），
+   * 但把 projection 重物化为空历史，并让既有订阅 resync 到空快照。
+   *
+   * 不能复用 dispose/deactivate：前者会把会话从 sessions-index 摘掉（任务行应当保留），
+   * 后者清 CommandInbox 并删 publisher（客户端存活订阅会丢 owner）。
+   * 也不能只依赖 rehydrate([])：seq 若归零，客户端"帧区间必须衔接"的规则会把它当成断档。
+   * 因此先把当前投影推进到 revision+1 的空状态，再以空事件集 rehydrate——
+   * rehydrate 内部会按既有 currentSeq 重建 recovery boundary。
+   */
+  clearSessionProjection(
+    sessionId: string,
+    options: {
+      workspaceId?: string | null;
+      meta?: { title: string; titleSource: "default" | "generated" | "custom" };
+    } = {},
+  ): void {
+    const workspaceId = options.workspaceId ?? null;
+    const publisher = this.publishers.get(sessionId) ?? this.ensurePublisher(sessionId);
+    this.rejectProjectionEventWaiters(
+      sessionId,
+      new ProjectionEventCommitWaitError(
+        "fault.projectionEventCommit.rehydrated",
+        `conversation projection cleared while waiting for event commit: ${sessionId}`,
+      ),
+    );
+    publisher.resetProjection();
+    const clearedSeq = publisher.getSnapshot().seq;
+    // 清空后 runtime 的 event store 也从 1 重新计数；派生序号必须重新锚定到 clearedSeq 之上，
+    // 否则下一条新消息的 raw seq(1...) 会被判成“旧水位以下”直接丢弃，或把 snapshot 序号拖回退。
+    this.reanchorRawSequenceAfterClear(sessionId, clearedSeq);
+    // 标题与模型选型属于任务事实，不是聊天记录；空投影必须重新种入，否则面板变空标题/空模型。
+    if (options.meta) publisher.seedMeta(options.meta);
+    this.seedPublisherConfig(sessionId, publisher);
+    // 已清空的会话不应再被当作已完成 hydration 的旧投影；下次订阅按持久事实重建。
+    this.hydratedSessions.delete(sessionId);
+    // 清理不是事件递给每个订阅者的：resetProjection 只标记 resyncRequired，
+    // 这里必须像 hydration 收尾那样主动排出空快照，否则面板会一直显示旧聊天。
+    for (const [routeKey, state] of this.flushStates) {
+      if (state.sessionId !== sessionId) continue;
+      if (!publisher.hasSubscription(state.subscriptionId, state.connectionId)) continue;
+      if (state.timer) {
+        clearTimeout(state.timer);
+        state.timer = null;
+      }
+      if (this.pausedConnections.has(state.connectionId)) continue;
+      const reservation = publisher.reserveFlush(state.subscriptionId);
+      if (!reservation) continue;
+      try {
+        this.emitReservation(reservation);
+      } catch (error) {
+        this.host.onError?.("v4.clearHistory.subscriptionResync", error, {
+          phase: "clearSessionProjection",
+          sessionId,
+        });
+        this.scheduleFlush(routeKey, state, publisher);
+      }
+    }
+    // 摘要必须一起降回空态：普通 upsert 的降级保护会保留旧 preview/phase。
+    if (!workspaceId) return;
+    const indexPublisher = this.indexPublishers.get(workspaceId);
+    if (!indexPublisher) return;
+    const changed = indexPublisher.resetConversation(
+      publisher.getSnapshot(),
+      this.resolveIndexMeta(sessionId),
+    );
+    if (changed) this.flushIndex(workspaceId);
+  }
+
+  /**
+   * 聊天记录清空后重建 raw→transport 序号映射。
+   *
+   * 旧 runtime 的 event store 已删除，新 runtime 从 raw seq 1 重新计数；而被清空的投影
+   * 水位已经推到 clearedSeq。若不改 offset，新事件会被 `rawSeq <= sourceEventSeq`
+   * 判定为已消费而静默丢弃。这里保留已消费的 sourceEventSeq（重建期间的 SessionResumed
+   * 已经消费过），把 offset 调到 clearedSeq - sourceEventSeq，后续事件即从 clearedSeq+1 起。
+   * 未 drain 的 pending 属于旧 epoch 的缺口，永远补不齐，直接丢弃。
+   */
+  private reanchorRawSequenceAfterClear(sessionId: string, clearedSeq: number): void {
+    const state = this.rawSequenceStates.get(sessionId);
+    if (!state) {
+      this.rawSequenceStates.set(sessionId, {
+        sourceEventSeq: 0,
+        offset: clearedSeq,
+        lastTransportSeq: clearedSeq,
+        seenEventIds: new Set(),
+        appliedEventIds: new Set(),
+        failedEventById: new Map(),
+        pendingByRawSeq: new Map(),
+        recentRawEventsById: new Map(),
+      });
+      return;
+    }
+    for (const pendingRawSeq of state.pendingByRawSeq.keys()) {
+      state.sourceEventSeq = Math.max(state.sourceEventSeq, pendingRawSeq);
+    }
+    state.pendingByRawSeq.clear();
+    state.offset = clearedSeq - state.sourceEventSeq;
+    state.lastTransportSeq = clearedSeq;
+    state.appliedEventIds.clear();
+    state.failedEventById.clear();
+  }
+
   /** 会话关闭：清 publisher 与其全部订阅调度；hydration 标记同清（重开走冷启动重建）；
    *  并从其 workspace index 移除该会话（session.removed 推给列表订阅者）。 */
   disposeSession(sessionId: string): void {

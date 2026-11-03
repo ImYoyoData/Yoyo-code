@@ -499,6 +499,39 @@ export class ProductProjection {
     return this.snapshot;
   }
 
+  /**
+   * meta 种子注入（清空聊天记录后重建空投影时使用）。
+   *
+   * 标题属于任务事实而不是聊天记录：清空后标题必须保留。与 seedConfig 同一契约——
+   * 直改快照、不产 delta、不递增 revision/seq；事件触碰过的字段由事件值获胜。
+   */
+  seedMeta(seed: { title: string; titleSource: "default" | "generated" | "custom" }): void {
+    const title = seed.title.trim();
+    if (!title) return;
+    if (this.snapshot.meta.title === title && this.snapshot.meta.titleSource === seed.titleSource) {
+      return;
+    }
+    this.snapshot = {
+      ...this.snapshot,
+      meta: { title, titleSource: seed.titleSource },
+    };
+  }
+
+  /**
+   * 清空聊天记录后的空投影抬水位。
+   *
+   * 清空不换 topic publisher，也不能把 seq 退回 0：客户端用 (fromSeq, toSeq] 连续性判定
+   * 帧顺序，历史清理是一次真实的权威状态替换，必须表现为前进而不是回退。
+   */
+  markClearedAfter(sequenceNumber: number): void {
+    if (!Number.isFinite(sequenceNumber) || sequenceNumber <= 0) return;
+    this.snapshot = {
+      ...this.snapshot,
+      seq: sequenceNumber + 1,
+      revision: this.snapshot.revision + 1,
+    };
+  }
+
   /** assistant 守恒：被拒收的正文流事件数（>0 = 投影可能缺段，需重 hydration）。 */
   getDroppedContentStreamEventCount(): number {
     return this.droppedContentStreamEventCount;

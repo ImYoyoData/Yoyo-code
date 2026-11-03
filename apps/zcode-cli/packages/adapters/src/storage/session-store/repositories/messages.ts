@@ -219,6 +219,27 @@ export async function removePart(
   );
 }
 
+/**
+ * 清空某会话的全部聊天记录（message + part），保留 session 行、标题、
+ * tasks-index membership 与 session_entry 等任务事实。
+ *
+ * part 理论上随 message 级联删除，但历史库存在 message 缺失的孤儿 part，
+ * 这里按 session_id 再删一次，避免残留让冷恢复重新拼出旧片段。
+ * 调用方必须先关闭 runtime 并清空内存 event store，否则下一轮仍会带旧上下文。
+ */
+export function clearSessionMessages(db: DatabaseSync, input: { sessionID: SessionId }): number {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const removed = db.prepare("delete from message where session_id = ?").run(input.sessionID);
+    db.prepare("delete from part where session_id = ?").run(input.sessionID);
+    db.exec("COMMIT");
+    return Number(removed.changes ?? 0);
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export function messages(db: DatabaseSync, input: { sessionID: SessionId }): MessageWithParts[] {
   const messageRows = db
     .prepare(

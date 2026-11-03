@@ -649,6 +649,12 @@ export class SqliteSessionStore
     return messageRepository.messages(this.db, input);
   }
 
+  /** 清空会话聊天记录，保留 session / 标题 / membership；返回删除的 message 行数。 */
+  async clearMessages(input: { sessionID: SessionId }): Promise<number> {
+    this.throwBeforeWrite();
+    return messageRepository.clearSessionMessages(this.db, input);
+  }
+
   async saveSessionEntry(input: SessionEntryInfo): Promise<void> {
     this.throwBeforeWrite();
     return sessionEntryRepository.saveSessionEntry(this.db, input);

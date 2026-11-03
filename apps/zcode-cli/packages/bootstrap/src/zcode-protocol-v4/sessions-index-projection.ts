@@ -191,6 +191,35 @@ export class SessionsIndexProjection {
     return [{ op: "session.upserted", session: summary }];
   }
 
+  /**
+   * 聊天记录被清空后的权威替换。
+   *
+   * 普通 upsert 的降级保护是给「冷恢复 live 投影尚未补齐」的暂态用的；清空是显式用户操作，
+   * 旧的 preview/phase 必须随记录一起消失，否则侧栏仍显示已删除的摘要。
+   */
+  resetFromConversation(
+    snapshot: ConversationSnapshot,
+    extra: Omit<SessionSummaryDeriveExtra, "workspaceId">,
+  ): SessionsIndexDelta[] {
+    const summary = deriveSessionSummary(snapshot, {
+      workspaceId: this.workspaceId,
+      ...extra,
+    });
+    const prev = this.summaries.get(summary.sessionId);
+    if (prev) {
+      // 标题/创建时间/父子关系属于任务事实，不随聊天记录清空；其余活动态全部以空投影为准。
+      if (prev.title) {
+        summary.title = prev.title;
+        if (prev.titleSource === undefined) delete summary.titleSource;
+        else summary.titleSource = prev.titleSource;
+      }
+      if (prev.createdAt > 0) summary.createdAt = prev.createdAt;
+      if (prev.parentSessionId) summary.parentSessionId = prev.parentSessionId;
+    }
+    this.summaries.set(summary.sessionId, summary);
+    return [{ op: "session.upserted", session: summary }];
+  }
+
   /** 直接放入一条 summary（冷启动/无 live projection 的 store 会话）。 */
   seed(summary: SessionSummary): void {
     this.summaries.set(summary.sessionId, summary);

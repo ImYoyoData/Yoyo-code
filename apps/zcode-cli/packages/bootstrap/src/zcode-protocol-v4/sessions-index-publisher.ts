@@ -83,6 +83,14 @@ export class SessionsIndexPublisher {
     return this.record(this.projection.upsertFromConversation(snapshot, extra));
   }
 
+  /** 聊天记录清空：允许把摘要直接降回空态（不走 upsert 的降级保护）。 */
+  resetConversation(
+    snapshot: ConversationSnapshot,
+    extra: Omit<SessionSummaryDeriveExtra, "workspaceId">,
+  ): boolean {
+    return this.record(this.projection.resetFromConversation(snapshot, extra));
+  }
+
   /** 会话移除 → remove delta 记账。返回是否有变化。 */
   removeSession(sessionId: string): boolean {
     return this.record(this.projection.remove(sessionId));
