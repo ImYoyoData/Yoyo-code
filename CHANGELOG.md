@@ -3,6 +3,40 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.19.4 — 2026-11-03
+
+## 中文
+
+版本 **v3.19.4**（2026-11-03）
+
+### 问题修复
+
+- 引导降级或 stale 时给出反馈并重试
+
+### 其它变更
+
+- macOS runner 迁移到 macos-26
+
+
+## English
+
+Release **v3.19.4** (2026-11-03)
+
+### Fixes
+
+- 引导降级或 stale 时给出反馈并重试
+
+### Other Changes
+
+- macOS runner 迁移到 macos-26
+
+
+---
+
+2 条提交只写了单一语言，因此只显示原文。在提交信息正文里加 `EN:` / `ZH:` 行即可同时生成两种语言。
+
+2 commit(s) were single-language and are shown as-written. Add `EN:` / `ZH:` lines to the commit body to render both languages.
+
 ## v3.19.3 — 2026-11-02
 
 ## 中文

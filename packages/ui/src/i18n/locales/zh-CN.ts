@@ -4069,6 +4069,9 @@ const zhCN: Record<string, string> = {
   "chat.queue.sendGuide": "引导",
   "chat.queue.sendGuide.description": "把这条消息引导到当前任务，在下一轮工具调用后运行",
   "chat.queue.sendNow.description": "停止当前回复并立即发送这条队列消息",
+  "chat.queue.sendGuideFailed": "引导发送失败：{reason}",
+  "chat.queue.sendGuideQueued":
+    "当前回合暂时无法引导，消息已保留在队列；可稍后重试引导，或点击「立即」发送。",
   // compact 队列项曾单独显示“立即执行”，与同一队列中的即时动作文案不一致。
   "chat.queue.runNow": "立即",
   "chat.queue.edit": "编辑",
