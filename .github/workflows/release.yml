@@ -125,8 +125,9 @@ jobs:
   build-macos:
     needs: prepare
     if: needs.prepare.outputs.should_release == 'true'
-    # macos-14 镜像于 2026-11-02 退役，brownout 期间任务会被直接取消。
-    runs-on: macos-15
+    # macos-14 已退役；macos-15 在 2026-11-02 长时间无 runner 可分配，
+    # 改用当前 GA 的 macOS 26 arm64 镜像。
+    runs-on: macos-26
     timeout-minutes: 120
     env:
       ZCODE_ENV: production

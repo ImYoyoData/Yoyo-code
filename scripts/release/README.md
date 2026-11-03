@@ -9,7 +9,7 @@ Development happens on `dev`; `main` only receives finished work.
 
 ```
 push main ──▶ prepare（版本号 + CHANGELOG + 草稿 Release + tag）
-                 ├──▶ build-macos   (macos-15,   arm64)  ──▶ 上传 .dmg/.zip
+                 ├──▶ build-macos   (macos-26,   arm64)  ──▶ 上传 .dmg/.zip
                  └──▶ build-windows (windows-latest, x64) ──▶ 上传 .exe
                                    └──▶ finalize（草稿转正式 Release）
 ```
