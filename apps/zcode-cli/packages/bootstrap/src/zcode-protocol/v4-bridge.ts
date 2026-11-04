@@ -62,6 +62,7 @@ import {
 } from "../zcode-protocol-v4/v4-gateway.js";
 import {
   SESSION_ENTRY_TARGET_COMPLETION_VERIFICATION,
+  SESSION_ENTRY_TRANSCRIPT_VISIBILITY_BOUNDARY,
   SessionEventType,
   createEventId,
   createSessionId,
@@ -572,28 +573,29 @@ async function registerCommittedForkBestEffort(
 /**
  * clearSessionHistory 的执行体。
  *
- * 顺序：busy 预检 → 删除持久 message/part → 关闭并重建 runtime（丢弃 provider 上下文）
- * → 把 v4 投影重置为空。
+ * 顺序：busy 预检 → 写入显示边界 → 重置 v4 投影。
  *
- * 关键取舍：
- * - 不能只删库：runtime 的 messageHistory 仍持旧上下文，下一轮会继续带全量历史。
- * - 不能走 closeSession/disposeSession：那会把任务行从侧栏摘掉。
- * - 不能只 deactivate：会话被摘出注册表后，下一条 sendText 会被判成会话不存在。
- * 因此关闭旧 runtime 后用空历史重新冷恢复，会话保持可继续对话。
+ * 关键取舍：语义是「只清界面、模型仍记得」，因此**一条消息都不删**。
+ * - 不删 message/part：它们是 runtime 的 messageHistory 与 provider 上下文的唯一来源，
+ *   删掉就等于让模型失忆，与用户预期相反。
+ * - 不用 session.revert：那是 runtime 也会消费的分支裁剪，同样会让模型丢上下文。
+ * - 改用 session_entry 里的显示边界（runtime/transcript_visibility_boundary），
+ *   只有 v4 投影读取它，runtime 恢复路径完全不受影响。
+ * 因此 runtime 也**不需要重建**：上下文照旧，面板只是从边界之后开始显示。
  */
 async function clearSessionHistoryInBootstrap(
   context: ZCodeProtocolAgentServerContext,
   sessionId: string,
+  commandId?: string,
 ): Promise<void> {
   const store = context.deps.sessionStore;
-  if (!store?.clearMessages) {
-    throw Object.assign(new Error("session store does not support clearing messages"), {
+  if (!store?.sessionEntries || !store.saveSessionEntry) {
+    throw Object.assign(new Error("session store does not support transcript visibility"), {
       reasonCode: "fault.command.clearHistoryUnsupported",
     });
   }
   const record = context.sessions.get(sessionId);
-  const liveRecord = record;
-  // 标题在清空前后都不变；从持久 session 行读取，避免依赖 runtime 是否重建成功。
+  // 标题在清空前后都不变；从持久 session 行读取。
   const persisted = await store.getSession(sessionId as SessionId);
   if (!record && !persisted) {
     throw Object.assign(new Error("session not found"), {
@@ -614,11 +616,13 @@ async function clearSessionHistoryInBootstrap(
         reasonCode: "guard.clearHistorySessionBusy",
       });
     }
-    // CommandInbox pin / 未落库 queue 同样属于“正在写 transcript”的窗口。
-    context.v4Gateway?.assertSessionRuntimeDeactivatable(sessionId);
+    // 必须有稳定的当前消息指针：并发写入时宁可拒绝，也不要截到一个移动中的位置。
+    // 排除当前这条命令自身——它此刻正 in-flight。
+    context.v4Gateway?.assertSessionRuntimeDeactivatable(sessionId, {
+      ...(commandId ? { exceptCommandId: commandId } : {}),
+    });
   }
   // 摘要降级需要 workspace 分桶键；非任务列表会话（subagent / workflow child）不进 index。
-  // 冷会话没有 live record，用持久行的 taskType/workspaceID 还原同一个键。
   const workspaceIdForIndex = record
     ? isTaskListSessionType(record.taskType)
       ? record.workspace.workspaceKey
@@ -627,39 +631,24 @@ async function clearSessionHistoryInBootstrap(
       ? String(persisted.workspaceID ?? persisted.directory)
       : null;
 
-  // 记录删除先落库：即便后续 runtime 重建失败，用户的删除意图也已经生效。
-  await store.clearMessages({ sessionID: sessionId as SessionId });
-
-  if (liveRecord) {
-    liveRecord.unsubscribe?.();
-    await liveRecord.app.close?.();
-    context.sessions.delete(sessionId);
-    await liveRecord.eventStore.deleteSession(sessionId as SessionId);
-    // 空历史重新冷恢复：模型选型/标题走 session_entry，聊天记录已删，因此上下文为空。
-    // 失败只告警：历史已清空，用户再次打开会话会重新走同一条冷恢复路径。
-    try {
-      await activateSessionForResume(context, {
-        sessionId,
-        workspace: {
-          workspaceKey: liveRecord.workspace.workspaceKey,
-          workspacePath: liveRecord.workspace.workspacePath,
-          ...(liveRecord.workspace.workspaceIdentity
-            ? { workspaceIdentity: liveRecord.workspace.workspaceIdentity }
-            : {}),
-        },
-      });
-    } catch (error) {
-      context.logger?.warn("Session runtime rebind after history clear failed", {
-        error: error instanceof Error ? error.message : String(error),
-        event: "zcode_protocol.session.history_clear_rebind_failed",
-        module: "bootstrap.zcode_protocol",
-        sessionId,
-      });
-    }
+  // 边界 = 当前最后一条消息：界面从此之后开始显示，之前的记录只留在模型上下文里。
+  // 没有消息时不写边界（空会话本来就没什么可隐藏）。
+  const messages = await store.messages({ sessionID: sessionId as SessionId });
+  const lastMessage = messages.at(-1);
+  if (lastMessage) {
+    const now = Date.now();
+    await store.saveSessionEntry({
+      id: `${SESSION_ENTRY_TRANSCRIPT_VISIBILITY_BOUNDARY}:${sessionId}`,
+      sessionID: sessionId as SessionId,
+      type: SESSION_ENTRY_TRANSCRIPT_VISIBILITY_BOUNDARY,
+      time: { created: now, updated: now },
+      // 不刷新 session 活动时间：清空显示不是一次任务活动。
+      touchSession: false,
+      data: { hiddenBeforeMessageID: String(lastMessage.info.id) },
+    });
   }
 
-  // 投影必须最后重置：重建期间的 SessionResumed 等事件也不能留在空会话里。
-  // 标题不是聊天记录，重建后的空投影要重新种入，否则面板显示空标题。
+  // 投影重置：界面清空、摘要降级；runtime 与 message 数据保持不变。
   context.v4Gateway?.clearSessionProjection(sessionId, {
     workspaceId: workspaceIdForIndex,
     ...(persisted
@@ -671,8 +660,8 @@ async function clearSessionHistoryInBootstrap(
         }
       : {}),
   });
-  context.logger?.info("Session history cleared", {
-    event: "zcode_protocol.session.history_cleared",
+  context.logger?.info("Session transcript hidden (context kept)", {
+    event: "zcode_protocol.session.transcript_hidden",
     module: "bootstrap.zcode_protocol",
     sessionId,
   });
@@ -684,7 +673,8 @@ export function createConversationV4Gateway(
   const log = createProtocolLogger(context.deps)?.child({
     module: "bootstrap.zcode_protocol_v4_gateway",
   });
-  const persistentCommands = new PersistentCommandIndex({    loadSession: async (sessionId) => {
+  const persistentCommands = new PersistentCommandIndex({
+    loadSession: async (sessionId) => {
       const live = context.sessions.get(sessionId);
       const stored = await context.deps.sessionStore?.getSession(sessionId as SessionId);
       if (!live && !stored) return null;
@@ -1220,9 +1210,9 @@ export function createConversationV4Gateway(
      * - 不能只 deactivate：会话被摘出注册表后，下一条 sendText 会被判成会话不存在。
      * 因此关闭旧 runtime 后用空历史重新冷恢复，会话保持可继续对话。
      */
-    clearSessionHistory: async (sessionId) => {
+    clearSessionHistory: async (sessionId, commandId) => {
       try {
-        await clearSessionHistoryInBootstrap(context, sessionId);
+        await clearSessionHistoryInBootstrap(context, sessionId, commandId);
         // 清空后，命令幂等回源不再有任何 transcript 事实；旧 LRU 里的空结果必须失效。
         persistentCommands.invalidate(sessionId);
       } catch (error) {
