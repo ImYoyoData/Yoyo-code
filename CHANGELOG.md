@@ -38,6 +38,11 @@ Release **v3.21.0** (2026-11-04)
   - _中文：_
     - 修复清空会话记录必然失败：pinned 检查把正在执行的命令自身当作并发写入，活会话恒判忙，冷会话则被拒为 sessionNotFound。
 
+
+---
+
+提交对照 / Full diff: https://github.com/ImYoyoData/Yoyo-code/compare/v3.20.0...v3.21.0
+
 ## v3.20.0 — 2026-11-03
 
 ## 中文
@@ -62,7 +67,6 @@ Release **v3.21.0** (2026-11-04)
   - _EN:_
     - Defer the turn-navigator history prefetch to idle time so switching sessions renders the tail window first. Long conversations no longer stall while the full history is pulled into the renderer.
 
-
 ## English
 
 Release **v3.20.0** (2026-11-03)
@@ -84,7 +88,6 @@ Release **v3.20.0** (2026-11-03)
 - Defer the turn-navigator history prefetch to idle time so switching sessions renders the tail window first. Long conversations no longer stall while the full history is pulled into the renderer.
   - _中文：_
     - 轮次导航的历史补拉改到空闲期执行，切换会话先渲染尾部窗口，长会话不再因一次性加载全部历史而卡顿。
-
 
 ---
 
