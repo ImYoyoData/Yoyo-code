@@ -27,6 +27,14 @@ interface CommandInboxHost {
   getRevision(sessionId: string): number | null;
   /** 会话当前投影代际；CAS 必须先校验 epoch，再校验 revision。 */
   getLogEpoch(sessionId: string): string | null;
+  /**
+   * 该命令是否允许作用于「不在内存注册表、但可能已持久化」的会话。
+   *
+   * 默认 false：绝大多数命令需要活 runtime（投影、queue、CAS 都依赖它），冷会话必须
+   * 先订阅冷恢复。但纯持久化维护类命令（clearSessionHistory）只读 session store，
+   * 不应该要求用户先在 UI 里打开一次会话。
+   */
+  allowsColdSession?(envelope: CommandEnvelope): boolean;
   /** row-targeting command 的 entity/action 同源 resolver 裁决。 */
   validateRowTarget?(envelope: CommandEnvelope): GuardDecision;
   /** 业务 guard（product-protocol guard id）。缺省一律放行。 */
@@ -246,12 +254,32 @@ export class CommandInbox {
     }
   }
 
-  hasPinnedSessionState(sessionId: string): boolean {
+  /**
+   * 是否仍有 pinned 输入（in-flight 命令 / 未落库 live input）。
+   *
+   * exceptCommandId 用于「命令自己在执行、但需要检查其它 pin」的场景：
+   * 清空聊天记录必须先确认没有并发写入，否则会把正在写的 transcript 删一半；
+   * 但当前这条命令自身必然 in-flight，不排除它就等于永远失败。
+   */
+  hasPinnedSessionState(
+    sessionId: string,
+    options: { exceptCommandId?: string } = {},
+  ): boolean {
     const bucketKey = this.bucketKey(sessionId);
-    return (
-      (this.inFlight.get(bucketKey)?.size ?? 0) > 0 ||
-      (this.liveInputs.get(bucketKey)?.size ?? 0) > 0
-    );
+    const except = options.exceptCommandId;
+    const inFlight = this.inFlight.get(bucketKey);
+    if (inFlight) {
+      for (const commandId of inFlight.keys()) {
+        if (commandId !== except) return true;
+      }
+    }
+    const live = this.liveInputs.get(bucketKey);
+    if (live) {
+      for (const commandId of live.keys()) {
+        if (commandId !== except) return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -309,6 +337,22 @@ export class CommandInbox {
     envelope: CommandEnvelope,
   ): { kind: "execute"; ack: CommandAck } | { kind: "ack"; ack: CommandAck; remember: boolean } {
     const revision = envelope.sessionId === null ? 0 : this.host.getRevision(envelope.sessionId);
+    if (
+      revision === null &&
+      envelope.sessionId !== null &&
+      this.host.allowsColdSession?.(envelope) === true
+    ) {
+      // 纯持久化维护命令（如 clearSessionHistory）不读 live 投影，冷会话直接放行；
+      // revisionAtDecision = 0 只是占位——该命令不参与 CAS，不依赖这个值做裁决。
+      return {
+        kind: "execute",
+        ack: {
+          commandId: envelope.commandId,
+          status: "accepted",
+          revisionAtDecision: 0,
+        },
+      };
+    }
     if (revision === null || (envelope.type !== "createSession" && envelope.sessionId === null)) {
       return {
         kind: "ack",

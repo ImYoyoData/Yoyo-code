@@ -123,6 +123,7 @@ import {
   v4ConversationUnsubscribeParamsSchema,
 } from "@zcode/shared/zcode-protocol-v4";
 import { AttachmentUploadRegistry } from "./attachment-upload-registry.js";
+import { createInitialConversationSnapshot } from "./projection-state.js";
 import {
   ColdSessionResumeCoordinator,
   type ColdSessionResumeOutcome,
@@ -647,6 +648,9 @@ export class ConversationV4Gateway {
         return this.publishers.get(sessionId)?.getSnapshot().revision ?? 0;
       },
       getLogEpoch: (sessionId) => this.publishers.get(sessionId)?.getSnapshot().logEpoch ?? null,
+      // 纯持久化维护命令允许指向未加载的会话：清空聊天记录只读写 session store，
+      // 不依赖 live 投影。此前一律要求活 runtime，侧栏里没打开过的历史任务全部被拒。
+      allowsColdSession: (envelope) => envelope.type === "clearSessionHistory",
       validateRowTarget: (envelope) => {
         const action = rowTargetActionForCommand(envelope.type);
         if (!action || envelope.sessionId === null) return { verdict: "allow" };
@@ -2445,7 +2449,9 @@ export class ConversationV4Gateway {
             })
           : outcome.envelope.sessionId === null
             ? null
-            : this.ensurePublisher(outcome.envelope.sessionId);
+            : // 只为输入类命令测量 admission 投影；其它命令（含冷会话的 clearSessionHistory）
+              // 不能在这里凭空 ensurePublisher，否则会给未加载会话建出一个假 live 投影。
+              (this.publishers.get(outcome.envelope.sessionId) ?? null);
       const admissionProjectionBytes = admissionPublisher?.measureInputAdmissionProjectionBytes(
         outcome.envelope,
         admission,
@@ -2683,7 +2689,25 @@ export class ConversationV4Gateway {
     } = {},
   ): void {
     const workspaceId = options.workspaceId ?? null;
-    const publisher = this.publishers.get(sessionId) ?? this.ensurePublisher(sessionId);
+    const existingPublisher = this.publishers.get(sessionId);
+    // 冷会话（侧栏里没打开过 / 已被常驻池回收）没有 publisher。这里不能为它新建一个：
+    // 那会让一个根本不存在的 live 会话看起来可订阅。摘要降级直接用一份空快照。
+    if (!existingPublisher) {
+      if (!workspaceId || !options.meta) return;
+      const indexPublisher = this.indexPublishers.get(workspaceId);
+      if (!indexPublisher) return;
+      const emptySnapshot = createInitialConversationSnapshot(
+        sessionId,
+        this.createLogEpoch(sessionId),
+      );
+      const changed = indexPublisher.resetConversation(emptySnapshot, {
+        createdAt: 0,
+        lastActivityAt: this.now(),
+      });
+      if (changed) this.flushIndex(workspaceId);
+      return;
+    }
+    const publisher = existingPublisher;
     this.rejectProjectionEventWaiters(
       sessionId,
       new ProjectionEventCommitWaitError(
@@ -2693,14 +2717,14 @@ export class ConversationV4Gateway {
     );
     publisher.resetProjection();
     const clearedSeq = publisher.getSnapshot().seq;
-    // 清空后 runtime 的 event store 也从 1 重新计数；派生序号必须重新锚定到 clearedSeq 之上，
-    // 否则下一条新消息的 raw seq(1...) 会被判成“旧水位以下”直接丢弃，或把 snapshot 序号拖回退。
-    this.reanchorRawSequenceAfterClear(sessionId, clearedSeq);
+    // runtime 不重建，event store 的 raw 序号继续单调递增；只需把 transport 水位对齐到
+    // clearedSeq，避免下一条真实事件的 transportSeq 与空快照的 seq 撞在一起。
+    this.alignTransportSequenceAfterClear(sessionId, clearedSeq);
     // 标题与模型选型属于任务事实，不是聊天记录；空投影必须重新种入，否则面板变空标题/空模型。
     if (options.meta) publisher.seedMeta(options.meta);
     this.seedPublisherConfig(sessionId, publisher);
-    // 已清空的会话不应再被当作已完成 hydration 的旧投影；下次订阅按持久事实重建。
-    this.hydratedSessions.delete(sessionId);
+    // 刻意不删除 hydratedSessions：publisher 已经被重置为权威空态，
+    // 再触发一次 hydration 只会把边界之前的旧事件重新灌进投影。
     // 清理不是事件递给每个订阅者的：resetProjection 只标记 resyncRequired，
     // 这里必须像 hydration 收尾那样主动排出空快照，否则面板会一直显示旧聊天。
     for (const [routeKey, state] of this.flushStates) {
@@ -2735,15 +2759,13 @@ export class ConversationV4Gateway {
   }
 
   /**
-   * 聊天记录清空后重建 raw→transport 序号映射。
+   * 清空显示后把 transport 水位对齐到空快照。
    *
-   * 旧 runtime 的 event store 已删除，新 runtime 从 raw seq 1 重新计数；而被清空的投影
-   * 水位已经推到 clearedSeq。若不改 offset，新事件会被 `rawSeq <= sourceEventSeq`
-   * 判定为已消费而静默丢弃。这里保留已消费的 sourceEventSeq（重建期间的 SessionResumed
-   * 已经消费过），把 offset 调到 clearedSeq - sourceEventSeq，后续事件即从 clearedSeq+1 起。
-   * 未 drain 的 pending 属于旧 epoch 的缺口，永远补不齐，直接丢弃。
+   * runtime 不重建，所以 sourceEventSeq / pending 都是真实在途事实，不能动；
+   * 只需要保证下一条事件的 transportSeq = clearedSeq + 1，不与空快照的 seq 重复。
+   * offset 的调整让 (rawSeq - sourceEventSeq) 从 clearedSeq + 1 起算。
    */
-  private reanchorRawSequenceAfterClear(sessionId: string, clearedSeq: number): void {
+  private alignTransportSequenceAfterClear(sessionId: string, clearedSeq: number): void {
     const state = this.rawSequenceStates.get(sessionId);
     if (!state) {
       this.rawSequenceStates.set(sessionId, {
@@ -2758,14 +2780,8 @@ export class ConversationV4Gateway {
       });
       return;
     }
-    for (const pendingRawSeq of state.pendingByRawSeq.keys()) {
-      state.sourceEventSeq = Math.max(state.sourceEventSeq, pendingRawSeq);
-    }
-    state.pendingByRawSeq.clear();
     state.offset = clearedSeq - state.sourceEventSeq;
     state.lastTransportSeq = clearedSeq;
-    state.appliedEventIds.clear();
-    state.failedEventById.clear();
   }
 
   /** 会话关闭：清 publisher 与其全部订阅调度；hydration 标记同清（重开走冷启动重建）；
@@ -2793,8 +2809,11 @@ export class ConversationV4Gateway {
    * Resident 回收纯预检：调用方可在拆 runtime event subscription 前拒绝不安全回收。
    * deactivateSession 内仍复用同一校验，防止未来新增调用方绕过执行面 preflight。
    */
-  assertSessionRuntimeDeactivatable(sessionId: string): void {
-    if (!this.inbox.hasPinnedSessionState(sessionId)) return;
+  assertSessionRuntimeDeactivatable(
+    sessionId: string,
+    options: { exceptCommandId?: string } = {},
+  ): void {
+    if (!this.inbox.hasPinnedSessionState(sessionId, options)) return;
     throw new Error(`Session command inbox is still pinned: ${sessionId}`);
   }
 

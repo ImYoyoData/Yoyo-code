@@ -667,6 +667,15 @@ export class SqliteSessionStore
     return sessionEntryRepository.sessionEntries(this.db, input);
   }
 
+  /** 删除记录类 session_entry；用于清空聊天记录后移除指向已删消息的旁证。 */
+  async deleteSessionEntries(input: {
+    sessionID: SessionId;
+    types?: readonly string[];
+  }): Promise<number> {
+    this.throwBeforeWrite();
+    return sessionEntryRepository.deleteSessionEntries(this.db, input);
+  }
+
   // ── session_input 账本──
 
   async saveSessionInput(input: {

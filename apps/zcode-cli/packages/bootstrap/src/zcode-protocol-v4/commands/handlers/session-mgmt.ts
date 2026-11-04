@@ -195,7 +195,7 @@ async function clearSessionHistory(
       "v4 clearSessionHistory requires host.clearSessionHistory capability",
     );
   }
-  await host.clearSessionHistory(sessionId);
+  await host.clearSessionHistory(sessionId, envelope.commandId);
   return undefined;
 }
 
