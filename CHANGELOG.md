@@ -3,6 +3,41 @@
 本文件由 `scripts/release/prepare-release.mjs` 自动维护：每次发布在标题下方插入一条双语条目。
 This file is maintained by the release workflow; each release prepends a bilingual entry.
 
+## v3.21.0 — 2026-11-04
+
+## 中文
+
+版本 **v3.21.0**（2026-11-04）
+
+### 新功能
+
+- 清空会话记录改为只隐藏显示：写入显示边界，消息数据一条不删，runtime 不重建，模型上下文完整保留。
+  - _EN:_
+    - Change "Clear chat history" to hide the transcript instead of deleting it. Messages are kept, the runtime is not restarted, and the model context stays intact — only the conversation projection hides rows before the boundary.
+
+### 问题修复
+
+- 修复清空会话记录必然失败：pinned 检查把正在执行的命令自身当作并发写入，活会话恒判忙，冷会话则被拒为 sessionNotFound。
+  - _EN:_
+    - Fix "clear chat history" always failing. The pin check counted the running command itself as a concurrent writer, so live sessions were always reported busy, and cold sessions were rejected as not found.
+
+
+## English
+
+Release **v3.21.0** (2026-11-04)
+
+### Features
+
+- Change "Clear chat history" to hide the transcript instead of deleting it. Messages are kept, the runtime is not restarted, and the model context stays intact — only the conversation projection hides rows before the boundary.
+  - _中文：_
+    - 清空会话记录改为只隐藏显示：写入显示边界，消息数据一条不删，runtime 不重建，模型上下文完整保留。
+
+### Fixes
+
+- Fix "clear chat history" always failing. The pin check counted the running command itself as a concurrent writer, so live sessions were always reported busy, and cold sessions were rejected as not found.
+  - _中文：_
+    - 修复清空会话记录必然失败：pinned 检查把正在执行的命令自身当作并发写入，活会话恒判忙，冷会话则被拒为 sessionNotFound。
+
 ## v3.20.0 — 2026-11-03
 
 ## 中文
