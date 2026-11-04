@@ -1,5 +1,6 @@
 import {
   SessionEventType,
+  SESSION_ENTRY_TRANSCRIPT_VISIBILITY_BOUNDARY,
   selectActiveConversationBranch,
   type MessageWithParts,
   type SessionEntryInfo,
@@ -14,6 +15,35 @@ import {
   synthesizeEventsFromMessages,
   type HydratedGoalVerificationEntry,
 } from "./transcript-hydration.js";
+
+/**
+ * 应用「清空会话记录」的显示边界。
+ *
+ * 只影响 UI 投影：该边界消息及其之前的历史不再物化成 conversation rows，
+ * 但库里一条不删，runtime 的 messageHistory / provider 上下文因此完整保留。
+ * 找不到边界消息（例如历史被外部改过）时按无边界处理，宁可多显示也不误删。
+ */
+export function hideMessagesBeforeVisibilityBoundary(
+  messages: readonly MessageWithParts[],
+  entries: readonly SessionEntryInfo[],
+): MessageWithParts[] {
+  const boundaryEntry = entries
+    .filter((entry) => entry.type === SESSION_ENTRY_TRANSCRIPT_VISIBILITY_BOUNDARY)
+    .at(-1);
+  const data = boundaryEntry?.data;
+  const hiddenBeforeMessageId =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>).hiddenBeforeMessageID
+      : undefined;
+  if (typeof hiddenBeforeMessageId !== "string" || hiddenBeforeMessageId.length === 0) {
+    return [...messages];
+  }
+  const boundaryIndex = messages.findIndex(
+    (message) => String(message.info.id) === hiddenBeforeMessageId,
+  );
+  // 边界之后的全部消息可见（含边界消息自身之后的部分）；边界后没有消息时界面为空。
+  return boundaryIndex >= 0 ? [...messages.slice(boundaryIndex + 1)] : [...messages];
+}
 
 interface ConversationMaterializationSource {
   goalVerificationEntries: HydratedGoalVerificationEntry[];
@@ -75,12 +105,15 @@ export async function loadPersistedConversationMaterialization(input: {
     input.store.readTarget({ sessionID }),
     input.store.sessionEntries ? input.store.sessionEntries({ sessionID }) : Promise.resolve([]),
   ]);
-  const messages = selectActiveConversationBranch(allMessages, {
-    branchCutAfterMessageId: session?.revert?.branchCutAfterMessageID,
-    rewindCreatedMessageId: session?.revert?.createdMessageID,
-    rewindKeptMessageIds: session?.revert?.keptMessageIDs,
-    rewindTargetMessageId: session?.revert?.targetMessageID,
-  });
+  const messages = selectActiveConversationBranch(
+    hideMessagesBeforeVisibilityBoundary(allMessages, entries),
+    {
+      branchCutAfterMessageId: session?.revert?.branchCutAfterMessageID,
+      rewindCreatedMessageId: session?.revert?.createdMessageID,
+      rewindKeptMessageIds: session?.revert?.keptMessageIDs,
+      rewindTargetMessageId: session?.revert?.targetMessageID,
+    },
+  );
   const sharedContextMessage = messages.find(
     (message) =>
       message.info.role === "user" &&

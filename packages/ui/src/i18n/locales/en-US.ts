@@ -1554,10 +1554,10 @@ const enUS: Record<string, string> = {
   "taskList.pinFailed": "Could not update pinned state",
   "taskList.markAsUnread": "Mark as unread",
   "taskList.clearSessionHistory": "Clear chat history",
-  "taskList.clearSessionHistoryTitle": "Clear this session's chat history?",
+  "taskList.clearSessionHistoryTitle": "Hide this session's chat history? (model context is kept)",
   "taskList.clearSessionHistoryDescription":
-    "All chat records of “{taskTitle}” will be deleted. The task itself, its title, pin and archive state are kept. This cannot be undone.",
-  "taskList.clearSessionHistoryDone": "Chat history cleared",
+    "Chat records of “{taskTitle}” will no longer be shown, but the data and the model context are kept: the model still remembers them in the next turns. The task, its title, pin and archive state are unaffected, and hidden records cannot be shown again.",
+  "taskList.clearSessionHistoryDone": "Chat history cleared (model context kept)",
   "taskList.clearSessionHistoryBusy": "The session is running or waiting for a reply. Stop it first.",
   "taskList.clearSessionHistoryUnavailable":
     "This workspace is not connected, so the chat history cannot be cleared right now.",

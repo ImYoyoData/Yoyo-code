@@ -808,6 +808,16 @@ export const SESSION_ENTRY_USER_INPUT_AUTO_RESOLUTION =
   "runtime/user_input_auto_resolution" as const;
 export const SESSION_ENTRY_WORKSPACE_CHECKPOINT = "runtime/workspace_checkpoint" as const;
 export const SESSION_ENTRY_WORKSPACE_FILE_REWIND = "runtime/workspace_file_rewind" as const;
+/**
+ * 界面显示边界（清空会话记录专用）。
+ *
+ * data = { hiddenBeforeMessageID }：该消息之前（含自身）的聊天记录只在模型上下文里保留，
+ * 不再出现在 conversation 投影里。数据一条不删，因此 runtime 的 messageHistory 与
+ * provider 上下文完全不受影响——这是「只清界面、模型仍记得」的唯一实现方式。
+ * 刻意不进 SESSION_ENTRY_TYPES：它不参与 runtime 恢复语义，只被 v4 投影读取。
+ */
+export const SESSION_ENTRY_TRANSCRIPT_VISIBILITY_BOUNDARY =
+  "runtime/transcript_visibility_boundary" as const;
 
 export const SESSION_ENTRY_TYPES = [
   SESSION_ENTRY_TARGET_COMPLETION_VERIFICATION,
@@ -1136,6 +1146,15 @@ export interface SessionStorePort {
     sessionID: SessionId;
     type?: SessionEntryType | string;
   }): Promise<SessionEntryInfo[]>;
+  /**
+   * 删除该 session 的 session_entry，可按 type 限定；返回删除行数。
+   * 供「清空聊天记录」移除指向已删消息的记录类事实（命令幂等、checkpoint 等）。
+   * 可选：旧宿主不实现时调用方跳过。
+   */
+  deleteSessionEntries?(input: {
+    sessionID: SessionId;
+    types?: readonly string[];
+  }): Promise<number>;
   // ── session_input 账本（可选方法，旧宿主可不实现）──
   /** admission：输入已被接受（排队/待注入），durable 记账。幂等（同 id 重入更新 payload）。 */
   saveSessionInput?(input: {

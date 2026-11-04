@@ -77,3 +77,20 @@ export function sessionEntries(
 
   return (rows as unknown as SessionEntryRow[]).map(decodeSessionEntryRow);
 }
+
+/** 删除该会话的记录类 entry（可按 type 限定）；返回删除行数。 */
+export function deleteSessionEntries(
+  db: DatabaseSync,
+  input: { sessionID: SessionId; types?: readonly string[] },
+): number {
+  const types = input.types;
+  const result =
+    types && types.length > 0
+      ? db
+          .prepare(
+            `delete from session_entry where session_id = ? and type in (${types.map(() => "?").join(", ")})`,
+          )
+          .run(input.sessionID, ...types)
+      : db.prepare("delete from session_entry where session_id = ?").run(input.sessionID);
+  return Number(result.changes ?? 0);
+}

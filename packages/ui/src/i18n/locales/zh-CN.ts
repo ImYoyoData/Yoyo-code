@@ -1459,10 +1459,10 @@ const zhCN: Record<string, string> = {
   "taskList.pinFailed": "更新置顶状态失败",
   "taskList.markAsUnread": "标记为未读",
   "taskList.clearSessionHistory": "清空会话记录",
-  "taskList.clearSessionHistoryTitle": "清空这条会话的聊天记录？",
+  "taskList.clearSessionHistoryTitle": "清空这条会话的聊天记录？（保留模型上下文）",
   "taskList.clearSessionHistoryDescription":
-    "任务“{taskTitle}”的全部聊天记录会被删除，任务本身、标题、置顶与归档状态都会保留。该操作不可撤销。",
-  "taskList.clearSessionHistoryDone": "已清空会话记录",
+    "任务“{taskTitle}”的聊天记录将不再显示，但数据和模型上下文完整保留：之后继续对话时，模型仍记得之前的内容。任务本身、标题、置顶与归档状态都不受影响，已隐藏的记录无法再显示。",
+  "taskList.clearSessionHistoryDone": "已清空会话记录（模型上下文已保留）",
   "taskList.clearSessionHistoryBusy": "会话正在运行或等待确认，请先停止后再清空",
   "taskList.clearSessionHistoryUnavailable": "当前工作区未连接，暂时无法清空会话记录",
   "taskList.clearSessionHistoryFailed": "清空会话记录失败",
